@@ -21,11 +21,17 @@ export default function MenuItemCard({ item, onCustomize, categoryName }: MenuIt
   const [imageError, setImageError] = useState(false)
   
   const getImageUrl = () => {
-    // Use product image mapping if image_url is not set or is a placeholder
-    if (!item.image_url || item.image_url.includes("placeholder")) {
-      return getProductImage(item.name, item.category_id, categoryName)
+    // If we have a valid image URL, use it
+    if (item.image_url && !item.image_url.includes("placeholder")) {
+      // If it's a local path, ensure it starts with /
+      if (!item.image_url.startsWith('http') && !item.image_url.startsWith('/')) {
+        return `/${item.image_url}`
+      }
+      return item.image_url
     }
-    return item.image_url
+    
+    // Otherwise, use product image mapping
+    return getProductImage(item.name, item.category_id, categoryName)
   }
 
   const handleImageError = () => {

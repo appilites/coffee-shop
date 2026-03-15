@@ -21,6 +21,16 @@ const nextConfig = {
         hostname: '**.yandex.net',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'xnmnklgmmeqpajxwrkir.supabase.co',
+        pathname: '/**',
+      },
     ],
   },
   // Allow serving files from admin-dashboard/public

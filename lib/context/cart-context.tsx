@@ -25,20 +25,16 @@ interface CartContextType {
   clearCart: () => void
   getTotal: () => number
   getItemCount: () => number
-  selectedLocation: string | null
-  setSelectedLocation: (locationId: string | null) => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItemData[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null)
 
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem("coffee-cart")
-      const savedLocation = localStorage.getItem("coffee-location")
       if (savedCart) {
         try {
           setItems(JSON.parse(savedCart))
@@ -46,9 +42,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           console.error("Failed to parse cart:", e)
           localStorage.removeItem("coffee-cart")
         }
-      }
-      if (savedLocation) {
-        setSelectedLocation(savedLocation)
       }
     } catch (e) {
       console.error("Failed to access localStorage:", e)
@@ -62,16 +55,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       console.error("Failed to save cart:", e)
     }
   }, [items])
-
-  useEffect(() => {
-    try {
-      if (selectedLocation) {
-        localStorage.setItem("coffee-location", selectedLocation)
-      }
-    } catch (e) {
-      console.error("Failed to save location:", e)
-    }
-  }, [selectedLocation])
 
   const addItem = (item: CartItemData) => {
     setItems((prev) => [...prev, item])
@@ -115,8 +98,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         clearCart,
         getTotal,
         getItemCount,
-        selectedLocation,
-        setSelectedLocation,
       }}
     >
       {children}

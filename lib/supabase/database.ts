@@ -1,7 +1,6 @@
 import type { 
   MenuItem, 
   MenuCategory, 
-  Location, 
   CustomizationOption, 
   CustomizationChoice,
   Order, 
@@ -14,10 +13,10 @@ import type {
   UserReward,
   LoyaltyPointsBalance
 } from "../types"
-import { mockCategories, mockMenuItems, mockLocations } from "../mock-data"
+import { mockCategories, mockMenuItems } from "../mock-data"
 
 // Use mock data as fallback, but in production this should come from Supabase
-const useMockData = true // Set to false when Supabase is fully set up
+const useMockData = false // Set to false when Supabase is fully set up
 
 // Import Supabase client
 let supabase: any = null
@@ -26,49 +25,6 @@ try {
   supabase = getSupabaseBrowserClient()
 } catch (error) {
   console.warn('Supabase client not available, using mock data')
-}
-
-// Locations
-export const locationService = {
-  async getAll(): Promise<Location[]> {
-    if (useMockData || !supabase) {
-      return mockLocations
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('is_active', true)
-        .order('name')
-      
-      if (error) throw error
-      return data || mockLocations
-    } catch (error) {
-      console.error('Error fetching locations:', error)
-      return mockLocations
-    }
-  },
-
-  async getById(id: string): Promise<Location | null> {
-    if (useMockData || !supabase) {
-      return mockLocations.find(l => l.id === id) || null
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('id', id)
-        .single()
-      
-      if (error) throw error
-      return data
-    } catch (error) {
-      console.error('Error fetching location:', error)
-      return mockLocations.find(l => l.id === id) || null
-    }
-  }
 }
 
 // Categories
@@ -184,21 +140,81 @@ export const categoryService = {
 export const menuItemService = {
   async getAll(): Promise<MenuItem[]> {
     if (useMockData || !supabase) {
+      console.log('⚠️ Using mock menu items')
       return mockMenuItems
     }
 
     try {
+      console.log('🔍 Fetching menu items from Supabase...')
+      console.log('🔍 Supabase client:', supabase ? 'available' : 'not available')
+      console.log('🔍 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'using default')
+      
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
-        .eq('is_available', true)
-        .order('name')
+        // Removed .eq('is_available', true) to show all items
+        .order('created_at', { ascending: false }) // Order by newest first
       
-      if (error) throw error
-      return data || mockMenuItems
+      if (error) {
+        console.error('❌ Error fetching menu items:', error)
+        console.error('❌ Error code:', error.code)
+        console.error('❌ Error message:', error.message)
+        console.error('❌ Error details:', error.details)
+        console.error('❌ Error hint:', error.hint)
+        
+        // If it's a permission error, provide helpful message
+        if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy')) {
+          console.error('🚨 RLS POLICY ERROR: Products cannot be read. Please run scripts/11-simple-fix-rls.sql in Supabase SQL Editor.')
+        }
+        
+        // Don't throw - return empty array instead of mock data so we can see the error
+        return []
+      }
+      
+      console.log('✅ Fetched menu items from database:', data?.length || 0)
+      
+      if (!data || data.length === 0) {
+        console.warn('⚠️ No products found in database!')
+        console.warn('💡 Check: 1) Products exist in database, 2) RLS policies allow SELECT, 3) Products have valid category_id')
+        return []
+      }
+      
+      // Transform data to ensure consistent structure
+      const transformedData = (data || []).map((item: any) => ({
+        id: item.id,
+        category_id: item.category_id,
+        name: item.name,
+        description: item.description,
+        base_price: item.base_price,
+        image_url: item.image_url || `/coffee-drink.png`, // Use local default image
+        is_available: item.is_available,
+        is_featured: item.is_featured,
+        prep_time_minutes: item.prep_time_minutes || 5,
+        created_at: item.created_at,
+        updated_at: item.updated_at
+      }))
+      
+      console.log('📊 Transformed menu items:', transformedData.length)
+      if (transformedData.length > 0) {
+        console.log('📝 Sample item:', {
+          id: transformedData[0].id,
+          name: transformedData[0].name,
+          category_id: transformedData[0].category_id,
+          base_price: transformedData[0].base_price,
+          image_url: transformedData[0].image_url ? 'has image' : 'no image',
+          is_available: transformedData[0].is_available,
+          created_at: transformedData[0].created_at
+        })
+      }
+      
+      return transformedData
     } catch (error) {
-      console.error('Error fetching menu items:', error)
-      return mockMenuItems
+      console.error('❌ Exception fetching menu items:', error)
+      console.error('❌ Error type:', error instanceof Error ? error.constructor.name : typeof error)
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+      
+      // Return empty array instead of mock data so we can see the actual error
+      return []
     }
   },
 
@@ -233,7 +249,7 @@ export const menuItemService = {
         .from('menu_items')
         .select('*')
         .eq('is_featured', true)
-        .eq('is_available', true)
+        // Removed .eq('is_available', true) to show all featured items
         .order('name')
       
       if (error) throw error
@@ -313,10 +329,12 @@ export const menuItemService = {
 export const customizationService = {
   async getByMenuItem(menuItemId: string): Promise<CustomizationOption[]> {
     if (!supabase) {
+      console.warn('⚠️ Supabase client not available for customizations')
       return []
     }
 
     try {
+      console.log('🔍 Fetching customizations for menu item:', menuItemId)
       const { data, error } = await supabase
         .from('customization_options')
         .select(`
@@ -326,10 +344,24 @@ export const customizationService = {
         .eq('menu_item_id', menuItemId)
         .order('option_name')
       
-      if (error) throw error
+      if (error) {
+        console.error('❌ Supabase error fetching customizations:', error)
+        console.error('❌ Error code:', error.code)
+        console.error('❌ Error message:', error.message)
+        throw error
+      }
+      
+      console.log('✅ Customizations fetched:', data?.length || 0, 'options for item:', menuItemId)
+      if (data && data.length > 0) {
+        // Log each customization with its choices
+        data.forEach((opt: any) => {
+          console.log(`  - ${opt.option_name} (${opt.option_type}): ${opt.choices?.length || 0} choices`)
+        })
+      }
+      
       return data || []
     } catch (error) {
-      console.error('Error fetching customization options:', error)
+      console.error('❌ Exception fetching customization options:', error)
       return []
     }
   },
@@ -513,10 +545,27 @@ export const comboService = {
         .eq('is_active', true)
         .order('display_order')
       
-      if (error) throw error
+      if (error) {
+        // If table doesn't exist, silently return empty array (combo feature not set up yet)
+        if (error.message?.includes('Could not find the table') || 
+            error.message?.includes('relation') || 
+            error.code === '42P01') {
+          console.log('ℹ️ Combo options table not found - combo feature not configured')
+          return []
+        }
+        console.error('Error fetching combo options:', error.message || error)
+        return []
+      }
       return data || []
-    } catch (error) {
-      console.error('Error fetching combo options:', error)
+    } catch (error: any) {
+      // If table doesn't exist, silently return empty array
+      if (error?.message?.includes('Could not find the table') || 
+          error?.message?.includes('relation') ||
+          error?.code === '42P01') {
+        console.log('ℹ️ Combo options table not found - combo feature not configured')
+        return []
+      }
+      console.error('Error fetching combo options:', error?.message || error || 'Unknown error')
       return []
     }
   }

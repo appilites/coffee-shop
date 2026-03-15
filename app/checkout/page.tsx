@@ -15,7 +15,7 @@ import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, getTotal, selectedLocation } = useCart()
+  const { items, getTotal } = useCart()
   const [authMode, setAuthMode] = useState<"guest" | "login" | "signup">("guest")
   const [isLoading, setIsLoading] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
@@ -50,7 +50,6 @@ export default function CheckoutPage() {
         price: item.totalPrice,
         customizations: item.selectedCustomizations,
       })),
-      location_id: selectedLocation || "loc-1", // Default to first location if not set
       order_type: "drive-through",
       customer_name: guestData.name,
       customer_email: guestData.email,

@@ -147,7 +147,6 @@ export function OrdersTab() {
                       Customer: {order.user.full_name || order.user.email}
                     </p>
                   )}
-                  {order.location && <p className="text-sm text-muted-foreground">Location: {order.location.name}</p>}
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-bold text-foreground">${order.total_amount.toFixed(2)}</p>

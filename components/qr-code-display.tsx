@@ -4,17 +4,16 @@ import { Card } from "@/components/ui/card"
 import { QrCode } from "lucide-react"
 
 interface QRCodeDisplayProps {
-  locationId: string
-  locationName: string
+  locationName?: string
 }
 
-export function QRCodeDisplay({ locationId, locationName }: QRCodeDisplayProps) {
-  const qrCodeData = `DRUIDSNUTRITION_MENU_${locationId}`
+export function QRCodeDisplay({ locationName }: QRCodeDisplayProps) {
+  const qrCodeData = `DRUIDSNUTRITION_MENU`
 
   return (
     <Card className="p-6 text-center">
       <div className="mb-4">
-        <h3 className="font-serif text-lg font-semibold text-foreground">{locationName}</h3>
+        <h3 className="font-serif text-lg font-semibold text-foreground">{locationName || "Coffee Shop Menu"}</h3>
         <p className="text-sm text-muted-foreground">Scan to order</p>
       </div>
 

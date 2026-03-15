@@ -1,18 +1,3 @@
-export interface Location {
-  id: string
-  name: string
-  address: string
-  city: string
-  state: string
-  zip_code: string
-  phone: string | null
-  is_active: boolean
-  opening_time: string | null
-  closing_time: string | null
-  created_at: string
-  updated_at: string
-}
-
 export interface MenuCategory {
   id: string
   name: string
@@ -60,7 +45,6 @@ export interface CustomizationChoice {
 export interface Order {
   id: string
   user_id: string | null
-  location_id: string | null
   order_number: string
   customer_name: string
   customer_email: string | null

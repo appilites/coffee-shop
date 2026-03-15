@@ -4,8 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Loader2, CheckCircle2, Clock, Package, Car, MapPin, Star, Sparkles } from "lucide-react"
-import { mockLocations } from "@/lib/mock-data"
+import { Loader2, CheckCircle2, Clock, Package, Car, Star, Sparkles } from "lucide-react"
 import { useLoyalty } from "@/lib/context/loyalty-context"
 import Link from "next/link"
 
@@ -45,10 +44,6 @@ function OrderStatusContent() {
           setLoading(false)
           return
         }
-
-        // Find location details
-        const location = mockLocations.find((l) => l.id === orderData.location_id)
-        orderData.location = location
 
         setOrder(orderData)
         setLoading(false)
@@ -95,7 +90,7 @@ function OrderStatusContent() {
         if (orderData.id && orderData.status !== "ready") {
           orderData.status = statusProgression[currentIndex]
           localStorage.setItem(orderKey, JSON.stringify(orderData))
-          setOrder({ ...orderData, location: mockLocations.find((l) => l.id === orderData.location_id) })
+          setOrder({ ...orderData })
           currentIndex++
         }
       } else {
@@ -104,7 +99,8 @@ function OrderStatusContent() {
     }, 5000) // Update every 5 seconds
 
     return () => clearInterval(interval)
-  }, [orderId, router, awardPoints, refreshPoints])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]) // Only depend on orderId to avoid infinite loops
 
   if (loading) {
     return (
@@ -227,25 +223,6 @@ function OrderStatusContent() {
           </div>
         </Card>
 
-        {/* Pickup Location */}
-        {order.location && (
-          <Card className="p-4 sm:p-6 mb-4 sm:mb-6">
-            <div className="flex items-start gap-2 sm:gap-3">
-              <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-primary mt-0.5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1">Pickup Location</h3>
-                <p className="text-xs sm:text-sm text-foreground">{order.location.name}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">{order.location.address}</p>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {order.location.city}, {order.location.state} {order.location.zip_code}
-                </p>
-                {order.location.phone && (
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1">{order.location.phone}</p>
-                )}
-              </div>
-            </div>
-          </Card>
-        )}
 
         {/* Order Items */}
         <Card className="p-4 sm:p-6 mb-4 sm:mb-6">

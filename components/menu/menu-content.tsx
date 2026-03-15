@@ -3,12 +3,13 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
-import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice, Location } from "@/lib/types"
+import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Coffee, ArrowLeft, Search, Grid3x3, List, SlidersHorizontal, X, ChevronRight, ChevronLeft, ChevronDown, ChevronUp } from "lucide-react"
+import { ShoppingCart, Coffee, ArrowLeft, Search, Grid3x3, List, SlidersHorizontal, X, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, RefreshCw } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
+import { customizationService } from "@/lib/supabase/database"
 import { Input } from "@/components/ui/input"
 import MenuItemCard from "@/components/menu/menu-item-card"
 import MenuItemListCard from "@/components/menu/menu-item-list-card"
@@ -42,18 +43,27 @@ interface MenuContentProps {
     menuItems: MenuItem[]
     customizations: (CustomizationOption & { choices: CustomizationChoice[] })[]
   }
-  locations: Location[]
 }
 
 type ViewMode = "grid" | "list"
 type SortOption = "featured" | "name" | "price-low" | "price-high"
 
-export default function MenuContent({ menuData, locations }: MenuContentProps) {
+interface MenuContentProps {
+  menuData: {
+    categories: MenuCategory[]
+    menuItems: MenuItem[]
+    customizations: (CustomizationOption & { choices: CustomizationChoice[] })[]
+  }
+  onRefresh?: () => void
+}
+
+export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { getItemCount, selectedLocation, setSelectedLocation, getTotal, addItem } = useCart()
+  const { getItemCount, getTotal, addItem } = useCart()
   const categoryFromUrl = searchParams?.get("category")
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(categoryFromUrl || null)
+  // IMPORTANT: Always start with null to show ALL items by default (no filter)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [highlightedCategory, setHighlightedCategory] = useState<string | null>(null) // For scroll spy highlight only
 
   // Update selectedCategory when URL param changes
@@ -61,6 +71,7 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
     if (categoryFromUrl) {
       setSelectedCategory(categoryFromUrl)
       setHighlightedCategory(null) // Clear highlight when category is selected
+      console.log('📂 Category from URL:', categoryFromUrl, '- Filtering by category')
       // Scroll to the category tab after a brief delay to ensure DOM is ready
       setTimeout(() => {
         const container = categoryTabsContainerRef.current
@@ -85,15 +96,12 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
           }
         }
       }, 200)
+    } else {
+      // No category in URL - show all items
+      setSelectedCategory(null)
+      console.log('📂 No category selected - showing all items')
     }
   }, [categoryFromUrl])
-
-  // Auto-select first location if none is selected
-  useEffect(() => {
-    if (!selectedLocation && locations.length > 0) {
-      setSelectedLocation(locations[0].id)
-    }
-  }, [selectedLocation, locations, setSelectedLocation])
 
   const [searchQuery, setSearchQuery] = useState("")
   const [customizeItem, setCustomizeItem] = useState<MenuItem | null>(null)
@@ -105,8 +113,25 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
 
   const [sortBy, setSortBy] = useState<SortOption>("featured")
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 20])
+  // Calculate max price from all items to set proper price range
+  const maxPrice = useMemo(() => {
+    if (menuData.menuItems.length === 0) return 500
+    const max = Math.max(...menuData.menuItems.map(item => item.base_price || 0))
+    return Math.ceil(max) + 50 // Add buffer
+  }, [menuData.menuItems])
+  
+  // Initialize price range with maxPrice (will update when maxPrice changes)
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500])
   const [showFeaturedOnly, setShowFeaturedOnly] = useState(false)
+  
+  // Update price range when maxPrice changes to ensure all items are visible
+  useEffect(() => {
+    if (maxPrice > 0) {
+      // Always set to full range to show all products by default
+      setPriceRange([0, maxPrice])
+      console.log('💰 Price range set to show all items:', [0, maxPrice], 'Max item price:', maxPrice)
+    }
+  }, [maxPrice])
   const [filterOpen, setFilterOpen] = useState(false)
   const [categoriesExpanded, setCategoriesExpanded] = useState(false)
   const categoryRefs = useRef<{ [key: string]: HTMLElement | null }>({})
@@ -117,9 +142,12 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
 
   // Get parent categories (categories with no parent_id)
   const parentCategories = useMemo(() => {
-    return menuData.categories
-      .filter((cat) => !cat.parent_id)
-      .sort((a, b) => a.display_order - b.display_order)
+    const parents = menuData.categories
+      .filter((cat) => !cat.parent_id && cat.is_active !== false)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+    
+    console.log('📂 Parent Categories:', parents.map(c => ({ id: c.id, name: c.name, display_order: c.display_order })))
+    return parents
   }, [menuData.categories])
 
   // Get subcategories for each parent
@@ -164,8 +192,8 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
            item.description?.toLowerCase().includes("build your own")
   }
 
-  // Handle add to cart - for Loaded Tea items, add directly without customization
-  const handleAddToCart = (item: MenuItem) => {
+  // Handle add to cart - check if item has customizations from database
+  const handleAddToCart = async (item: MenuItem) => {
     if (isPowerBowlItem(item)) {
       // Open Power Bowl multi-step customization dialog
       setPowerBowlItem(item)
@@ -176,20 +204,26 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
         menuItem: item,
         quantity: 1,
         selectedCustomizations: [],
-        totalPrice: item.base_price,
+        totalPrice: item.base_price || 0,
       }
       addItem(cartItem)
       router.push("/cart")
     } else {
-      // Open customize dialog for other items
+      // ALWAYS open customize dialog (pehle wala behavior restore)
+      // Dialog will show ONLY database variations (no auto-generated ones)
+      console.log('🔄 Opening customize dialog for product:', item.id)
       setCustomizeItem(item)
     }
   }
 
   const filteredItems = useMemo(() => {
-    let items = menuData.menuItems
+    // Start with ALL menu items (no filters applied initially)
+    let items = menuData.menuItems || []
 
-    // Filter by category
+    // Debug: Log total items
+    console.log('📦 Total menu items:', items.length)
+
+    // Filter by category (only if category is selected)
     if (selectedCategory) {
       const category = menuData.categories.find((c) => c.id === selectedCategory)
       if (category) {
@@ -208,24 +242,43 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
           // Subcategory: show items from this subcategory only
           items = items.filter((item) => item.category_id === selectedCategory)
         }
+        console.log('📂 After category filter:', items.length)
       }
     }
 
-    // Filter by search query
-    if (searchQuery) {
+    // Filter by search query (only if search query exists)
+    if (searchQuery && searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       items = items.filter(
         (item) => item.name.toLowerCase().includes(query) || item.description?.toLowerCase().includes(query),
       )
+      console.log('🔍 After search filter:', items.length)
     }
 
-    // Filter by featured
+    // Filter by featured (only if featured filter is ON)
     if (showFeaturedOnly) {
       items = items.filter((item) => item.is_featured)
+      console.log('⭐ After featured filter:', items.length)
     }
 
-    // Filter by price range
-    items = items.filter((item) => item.base_price >= priceRange[0] && item.base_price <= priceRange[1])
+    // Filter by price range (ensure all items are within range)
+    // Only filter if price range is not the default (0 to maxPrice)
+    const beforePriceFilter = items.length
+    // Check if it's default range: [0, maxPrice] or if maxPrice is 0/not calculated, check if range covers all items
+    const isDefaultPriceRange = (priceRange[0] === 0 && maxPrice > 0 && priceRange[1] >= maxPrice) || 
+                                (priceRange[0] === 0 && maxPrice === 0 && priceRange[1] >= 500)
+    if (!isDefaultPriceRange) {
+      items = items.filter((item) => {
+        const price = item.base_price || 0
+        return price >= priceRange[0] && price <= priceRange[1]
+      })
+      if (beforePriceFilter !== items.length) {
+        console.log('💰 After price filter:', items.length, `(removed ${beforePriceFilter - items.length} items)`)
+        console.log('💰 Price range:', priceRange, 'Max price:', maxPrice, 'Is default:', isDefaultPriceRange)
+      }
+    } else {
+      console.log('💰 Price filter skipped (default range):', priceRange, 'Max price:', maxPrice)
+    }
 
     // Sort items
     switch (sortBy) {
@@ -246,8 +299,23 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
         break
     }
 
+    console.log('✅ Final filtered items:', items.length)
+    
+    // Summary log for debugging
+    const activeFilters = []
+    if (selectedCategory) activeFilters.push(`Category: ${selectedCategory}`)
+    if (searchQuery && searchQuery.trim()) activeFilters.push(`Search: "${searchQuery}"`)
+    if (showFeaturedOnly) activeFilters.push('Featured Only')
+    if (!isDefaultPriceRange) activeFilters.push(`Price: $${priceRange[0]}-$${priceRange[1]}`)
+    
+    if (activeFilters.length === 0) {
+      console.log('📊 NO FILTERS ACTIVE - Showing ALL products:', items.length, 'out of', menuData.menuItems.length)
+    } else {
+      console.log('📊 Active filters:', activeFilters.join(', '), '- Showing', items.length, 'items')
+    }
+    
     return items
-  }, [selectedCategory, searchQuery, menuData.menuItems, sortBy, priceRange, showFeaturedOnly])
+  }, [selectedCategory, searchQuery, menuData.menuItems, sortBy, priceRange, showFeaturedOnly, maxPrice])
 
   // Group items by category when showing all items or a parent category
   const groupedItems = useMemo(() => {
@@ -267,14 +335,44 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
     
     // Group filtered items by category_id
     const itemsByCategory: { [key: string]: MenuItem[] } = {}
+    const uncategorizedItems: MenuItem[] = []
+    
     filteredItems.forEach((item) => {
       const catId = item.category_id
       if (catId) {
-        if (!itemsByCategory[catId]) {
-          itemsByCategory[catId] = []
+        // Check if category exists in our categories list
+        const categoryExists = menuData.categories.some(c => c.id === catId)
+        if (categoryExists) {
+          if (!itemsByCategory[catId]) {
+            itemsByCategory[catId] = []
+          }
+          itemsByCategory[catId].push(item)
+        } else {
+          // Category doesn't exist, add to uncategorized
+          uncategorizedItems.push(item)
+          console.warn(`⚠️ Product "${item.name}" has category_id "${catId}" that doesn't exist in categories`)
         }
-        itemsByCategory[catId].push(item)
+      } else {
+        // No category_id, add to uncategorized
+        uncategorizedItems.push(item)
       }
+    })
+    
+    // Log for debugging
+    console.log('📊 Grouped Items Debug:', {
+      totalFilteredItems: filteredItems.length,
+      itemsByCategoryCount: Object.keys(itemsByCategory).length,
+      itemsInCategories: Object.values(itemsByCategory).reduce((sum, arr) => sum + arr.length, 0),
+      uncategorizedCount: uncategorizedItems.length,
+      categoriesToDisplay: categoriesToDisplay.length,
+      itemsByCategory: Object.keys(itemsByCategory).map(catId => {
+        const cat = menuData.categories.find(c => c.id === catId)
+        return {
+          categoryId: catId,
+          categoryName: cat?.name || 'Unknown',
+          itemCount: itemsByCategory[catId].length
+        }
+      })
     })
 
     // Create sections grouped by parent category
@@ -293,20 +391,61 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
         
         // Then add subcategory sections with their items
         subcategories.forEach((subcategory) => {
-          result.push({
-            category: subcategory,
-            items: itemsByCategory[subcategory.id] || [],
-            isParent: false
-          })
+          const subcategoryItems = itemsByCategory[subcategory.id] || []
+          if (subcategoryItems.length > 0) {
+            result.push({
+              category: subcategory,
+              items: subcategoryItems,
+              isParent: false
+            })
+          }
         })
       } else {
         // Parent without subcategories: show parent with its direct items
-        result.push({
-          category: parentCategory,
-          items: itemsByCategory[parentCategory.id] || [],
-          isParent: true
-        })
+        const parentItems = itemsByCategory[parentCategory.id] || []
+        if (parentItems.length > 0) {
+          result.push({
+            category: parentCategory,
+            items: parentItems,
+            isParent: true
+          })
+        }
       }
+    })
+    
+    // Add uncategorized items at the end if any
+    if (uncategorizedItems.length > 0) {
+      console.log(`⚠️ Found ${uncategorizedItems.length} products without valid categories - showing them`)
+      // Create a temporary category for uncategorized items
+      const uncategorizedCategory: MenuCategory = {
+        id: 'uncategorized',
+        name: 'Other Items',
+        description: null,
+        image_url: null,
+        is_active: true,
+        display_order: 9999,
+        parent_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      result.push({
+        category: uncategorizedCategory,
+        items: uncategorizedItems,
+        isParent: true
+      })
+    }
+
+    console.log('✅ Final grouped items result:', {
+      totalGroups: result.length,
+      totalItems: result.reduce((sum, group) => sum + group.items.length, 0),
+      groupsWithItems: result.filter(g => g.items.length > 0).length,
+      groups: result.map(g => ({
+        category: g.category.name,
+        categoryId: g.category.id,
+        itemCount: g.items.length,
+        isParent: g.isParent,
+        hasSubcategories: getSubcategories(g.category.id).length > 0
+      }))
     })
 
     return result
@@ -523,12 +662,40 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
   }
 
   const resetFilters = () => {
+    console.log('🔄 Resetting all filters...')
     setSortBy("featured")
-    setPriceRange([0, 20])
+    // Use dynamic maxPrice, fallback to 500 if not calculated yet
+    const resetMaxPrice = maxPrice > 0 ? maxPrice : 500
+    setPriceRange([0, resetMaxPrice])
     setShowFeaturedOnly(false)
+    setSearchQuery("") // Reset search query
+    // Only reset category if not from URL
+    if (!categoryFromUrl) {
+      setSelectedCategory(null) // Show all items
+      console.log('📂 Category reset to null (show all items)')
+    }
+    console.log('✅ Filters reset. Price range:', [0, resetMaxPrice], 'Max price:', resetMaxPrice)
   }
 
-  const hasActiveFilters = sortBy !== "featured" || priceRange[0] !== 0 || priceRange[1] !== 20 || showFeaturedOnly
+  // Check if any filters are active (excluding default values)
+  const hasActiveFilters = useMemo(() => {
+    const hasNonDefaultSort = sortBy !== "featured"
+    const hasNonDefaultPrice = priceRange[0] !== 0 || priceRange[1] !== maxPrice
+    const hasFeaturedFilter = showFeaturedOnly
+    const hasSearchQuery = searchQuery && searchQuery.trim().length > 0
+    const hasCategoryFilter = selectedCategory !== null && selectedCategory !== categoryFromUrl
+    
+    const active = hasNonDefaultSort || hasNonDefaultPrice || hasFeaturedFilter || hasSearchQuery || hasCategoryFilter
+    console.log('🔍 Active filters check:', {
+      hasNonDefaultSort,
+      hasNonDefaultPrice,
+      hasFeaturedFilter,
+      hasSearchQuery,
+      hasCategoryFilter,
+      active
+    })
+    return active
+  }, [sortBy, priceRange, maxPrice, showFeaturedOnly, searchQuery, selectedCategory, categoryFromUrl])
 
   return (
     <div className="min-h-screen bg-background pb-32">
@@ -555,6 +722,21 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
             </div>
             <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0">
               <LoyaltyPointsDisplay />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (onRefresh) {
+                    onRefresh()
+                  } else {
+                    window.location.reload()
+                  }
+                }}
+                className="h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 shrink-0"
+                title="Refresh Menu to see new products"
+              >
+                <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+              </Button>
               <CartSlideMenu open={isCartMenuOpen} onOpenChange={setIsCartMenuOpen}>
                 <Button
                   variant="outline"
@@ -950,7 +1132,7 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
                             <Input
                               type="number"
                               min={0}
-                              max={20}
+                              max={maxPrice}
                               value={priceRange[0]}
                               onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
                               className="flex-1 h-9 sm:h-10 text-sm sm:text-base"
@@ -960,7 +1142,7 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
                             <Input
                               type="number"
                               min={0}
-                              max={20}
+                              max={maxPrice}
                               value={priceRange[1]}
                               onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
                               className="flex-1 h-9 sm:h-10 text-sm sm:text-base"
@@ -1017,6 +1199,7 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
                   const style = getCategoryStyle(group.category.name)
                   const itemCount = group.items.length
                   const isParent = group.isParent
+                  const subcategories = getSubcategories(categoryId)
 
                   // Skip empty subcategories (only show parent heading if it has items or subcategories)
                   if (!isParent && itemCount === 0) {
@@ -1024,8 +1207,26 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
                   }
 
                   // For parent categories, show heading even if empty (they have subcategories)
-                  if (isParent && itemCount === 0 && getSubcategories(categoryId).length === 0) {
-                    return null
+                  // But skip if parent has no items AND no subcategories with items
+                  if (isParent && itemCount === 0) {
+                    // Check if any subcategory has items
+                    const hasSubcategoryItems = subcategories.some(sub => {
+                      const subItems = filteredItems.filter(item => item.category_id === sub.id)
+                      return subItems.length > 0
+                    })
+                    if (!hasSubcategoryItems) {
+                      return null
+                    }
+                  }
+                  
+                  // Debug log for each group
+                  if (itemCount > 0 || (isParent && subcategories.length > 0)) {
+                    console.log(`📦 Rendering category: ${group.category.name}`, {
+                      categoryId,
+                      itemCount,
+                      isParent,
+                      subcategoriesCount: subcategories.length
+                    })
                   }
 
                   return (
@@ -1095,38 +1296,43 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
                   )
                 })}
               </div>
-            ) : filteredItems.length > 0 ? (
+            ) : (
               // Fallback: show items directly when subcategory is selected (no grouping needed)
-              viewMode === "grid" ? (
-                <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1 sm:gap-1.5 md:gap-2 lg:gap-2">
-                  {filteredItems.map((item) => {
-                    const category = menuData.categories.find((c) => c.id === item.category_id)
-                    return (
-                      <MenuItemCard
-                        key={item.id}
-                        item={item}
-                        categoryName={category?.name}
-                        onCustomize={() => setCustomizeItem(item)}
-                      />
-                    )
-                  })}
+              <div>
+                <div className="mb-4 text-sm text-muted-foreground">
+                  Showing {filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}
                 </div>
-              ) : (
-                <div className="space-y-1.5 sm:space-y-2 md:space-y-2.5">
-                  {filteredItems.map((item) => {
-                    const category = menuData.categories.find((c) => c.id === item.category_id)
-                    return (
-                      <MenuItemListCard
-                        key={item.id}
-                        item={item}
-                        categoryName={category?.name}
-                        onCustomize={() => setCustomizeItem(item)}
-                      />
-                    )
-                  })}
-                </div>
-              )
-            ) : null}
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1 sm:gap-1.5 md:gap-2 lg:gap-2">
+                    {filteredItems.map((item) => {
+                      const category = menuData.categories.find((c) => c.id === item.category_id)
+                      return (
+                        <MenuItemCard
+                          key={item.id}
+                          item={item}
+                          categoryName={category?.name}
+                          onCustomize={() => handleAddToCart(item)}
+                        />
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 sm:space-y-2 md:space-y-2.5">
+                    {filteredItems.map((item) => {
+                      const category = menuData.categories.find((c) => c.id === item.category_id)
+                      return (
+                        <MenuItemListCard
+                          key={item.id}
+                          item={item}
+                          categoryName={category?.name}
+                          onCustomize={() => handleAddToCart(item)}
+                        />
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <div className="py-12 sm:py-16 md:py-20 text-center px-3 sm:px-4">
@@ -1165,6 +1371,7 @@ export default function MenuContent({ menuData, locations }: MenuContentProps) {
             item={customizeItem}
             customizations={getItemCustomizations(customizeItem.id)}
             categoryName={categoryName}
+            menuItems={menuData.menuItems}
             open={!!customizeItem}
             onClose={() => setCustomizeItem(null)}
           />

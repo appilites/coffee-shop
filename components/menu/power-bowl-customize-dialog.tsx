@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type { MenuItem } from "@/lib/types"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
@@ -238,6 +238,9 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Customize {item.name}</DialogTitle>
+        </DialogHeader>
         {/* Header */}
         <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 shrink-0">
           <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100 mb-1">

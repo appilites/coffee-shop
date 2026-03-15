@@ -8,7 +8,6 @@ export async function POST(req: NextRequest) {
 
     const {
       items,
-      location_id,
       customer_name,
       customer_email,
       customer_phone,
@@ -19,9 +18,6 @@ export async function POST(req: NextRequest) {
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "No items in order" }, { status: 400 })
-    }
-    if (!location_id) {
-      return NextResponse.json({ error: "Location ID is required" }, { status: 400 })
     }
     if (!customer_name || !customer_email) {
       return NextResponse.json({ error: "Customer name and email are required" }, { status: 400 })
@@ -46,7 +42,6 @@ export async function POST(req: NextRequest) {
 
     const orderData = {
       user_id: user_id || null,
-      location_id: location_id,
       total_amount: Number.parseFloat(total.toFixed(2)),
       tax_amount: Number.parseFloat(tax.toFixed(2)),
       status: "pending",
