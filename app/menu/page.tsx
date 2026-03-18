@@ -1,6 +1,7 @@
 "use client"
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { menuItemService, categoryService } from "@/lib/supabase/database"
+import { createBrowserClient } from "@/lib/supabase/client"
 import MenuContent from "@/components/menu/menu-content"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { MenuItem, MenuCategory } from "@/lib/types"
@@ -15,31 +16,49 @@ export default function MenuPage() {
   const [menuData, setMenuData] = useState<MenuData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const menuDataRef = useRef<MenuData | null>(null)
 
   useEffect(() => {
     fetchMenuData()
   }, [])
 
-  // Auto-refresh every 15 seconds to catch new products immediately
+  // Supabase Realtime: listen for ANY change on menu_items or menu_categories
+  // and immediately re-fetch so the shop is always up to date with the dashboard
   useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing menu data...')
-      fetchMenuData(false) // Don't show loading spinner on auto-refresh
-    }, 15000) // 15 seconds - very fast refresh
+    const supabase = createBrowserClient()
 
-    return () => clearInterval(interval)
+    const channel = supabase
+      .channel("menu-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_items" },
+        () => {
+          fetchMenuData(false)
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_categories" },
+        () => {
+          fetchMenuData(false)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
-  // Listen for visibility change to refresh when user returns to tab
+  // Refresh when user switches back to this tab
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('👁️ Tab visible - refreshing menu data...')
+      if (document.visibilityState === "visible") {
         fetchMenuData(false)
       }
     }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [])
 
   const fetchMenuData = async (showLoading = true) => {
@@ -49,66 +68,29 @@ export default function MenuPage() {
       } else {
         setRefreshing(true)
       }
-      
-      console.log('🔄 Fetching menu data from Supabase...', new Date().toISOString())
+
       const [categories, menuItems] = await Promise.all([
         categoryService.getAll(),
-        menuItemService.getAll()
+        menuItemService.getAll(),
       ])
 
-      console.log('📊 Menu data fetched:', {
-        categories: categories.length,
-        menuItems: menuItems.length,
-        timestamp: new Date().toISOString()
-      })
-
-      // Log sample products for debugging
-      if (menuItems.length > 0) {
-        console.log('📝 Sample products:', menuItems.slice(0, 3).map(item => ({
-          id: item.id,
-          name: item.name,
-          category_id: item.category_id,
-          is_available: item.is_available,
-          created_at: item.created_at
-        })))
-      } else {
-        console.warn('⚠️ No products found in database!')
-        console.warn('💡 Make sure products have is_available = true in database')
-      }
-
-      setMenuData({
+      const newData = {
         categories,
         menuItems,
-        customizations: [] // Will be populated when needed
-      })
+        customizations: [],
+      }
+      menuDataRef.current = newData
+      setMenuData(newData)
     } catch (error) {
-      console.error('❌ Error fetching menu data:', error)
-      console.error('Full error details:', error)
-      // Keep existing data if refresh fails
-      if (menuData) {
-        console.log('⚠️ Keeping existing menu data due to error')
-      } else {
-        setMenuData({
-          categories: [],
-          menuItems: [],
-          customizations: [],
-        })
+      console.error("Error fetching menu data:", error)
+      if (!menuDataRef.current) {
+        setMenuData({ categories: [], menuItems: [], customizations: [] })
       }
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }
-
-  // Expose refresh function to window for manual testing
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).refreshMenu = () => {
-        console.log('🔄 Manual refresh triggered')
-        fetchMenuData(true)
-      }
-    }
-  }, [])
 
   if (loading || !menuData) {
     return <MenuSkeleton />

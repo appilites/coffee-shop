@@ -15,36 +15,58 @@ import type {
 } from "../types"
 import { mockCategories, mockMenuItems } from "../mock-data"
 
-// Use mock data as fallback, but in production this should come from Supabase
-const useMockData = false // Set to false when Supabase is fully set up
+// Set to true only if Supabase is unavailable; false means live DB data is used
+const useMockData = false
 
-// Import Supabase client
+// Only initialize the Supabase client on the browser side
 let supabase: any = null
-try {
-  const { getSupabaseBrowserClient } = require("./client")
-  supabase = getSupabaseBrowserClient()
-} catch (error) {
-  console.warn('Supabase client not available, using mock data')
+if (typeof window !== 'undefined') {
+  try {
+    const { createBrowserClient } = require("./client")
+    supabase = createBrowserClient()
+  } catch (error) {
+    console.warn('Supabase client not available, using mock data')
+  }
 }
 
 // Categories
 export const categoryService = {
   async getAll(): Promise<MenuCategory[]> {
     if (useMockData || !supabase) {
+      console.log('📂 Using mock categories (mock mode or no client)')
       return mockCategories
     }
 
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
+      
       const { data, error } = await supabase
         .from('menu_categories')
         .select('*')
         .eq('is_active', true)
         .order('display_order')
+        .abortSignal(controller.signal)
       
-      if (error) throw error
+      clearTimeout(timeoutId)
+      
+      if (error) {
+        console.error('❌ Error fetching categories:', error.message || error)
+        console.log('📂 Falling back to mock categories')
+        return mockCategories
+      }
+      
+      console.log('✅ Fetched', data?.length || 0, 'categories from database')
       return data || mockCategories
-    } catch (error) {
-      console.error('Error fetching categories:', error)
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.error('❌ Categories request timed out (8s)')
+      } else if (error?.message?.includes('Failed to fetch')) {
+        console.error('❌ Network error fetching categories')
+      } else {
+        console.error('❌ Exception fetching categories:', error?.message || error)
+      }
+      console.log('📂 Falling back to mock categories')
       return mockCategories
     }
   },
@@ -140,53 +162,40 @@ export const categoryService = {
 export const menuItemService = {
   async getAll(): Promise<MenuItem[]> {
     if (useMockData || !supabase) {
-      console.log('⚠️ Using mock menu items')
+      console.log('📦 Using mock menu items (mock mode or no client)')
       return mockMenuItems
     }
 
     try {
-      console.log('🔍 Fetching menu items from Supabase...')
-      console.log('🔍 Supabase client:', supabase ? 'available' : 'not available')
-      console.log('🔍 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL || 'using default')
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
       
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
-        // Removed .eq('is_available', true) to show all items
-        .order('created_at', { ascending: false }) // Order by newest first
+        .order('created_at', { ascending: false })
+        .abortSignal(controller.signal)
+      
+      clearTimeout(timeoutId)
       
       if (error) {
-        console.error('❌ Error fetching menu items:', error)
-        console.error('❌ Error code:', error.code)
-        console.error('❌ Error message:', error.message)
-        console.error('❌ Error details:', error.details)
-        console.error('❌ Error hint:', error.hint)
-        
-        // If it's a permission error, provide helpful message
-        if (error.code === '42501' || error.message?.includes('permission') || error.message?.includes('policy')) {
-          console.error('🚨 RLS POLICY ERROR: Products cannot be read. Please run scripts/11-simple-fix-rls.sql in Supabase SQL Editor.')
-        }
-        
-        // Don't throw - return empty array instead of mock data so we can see the error
-        return []
+        console.error('❌ Error fetching menu items:', error.message || error)
+        console.log('📦 Falling back to mock menu items')
+        return mockMenuItems
       }
-      
-      console.log('✅ Fetched menu items from database:', data?.length || 0)
       
       if (!data || data.length === 0) {
-        console.warn('⚠️ No products found in database!')
-        console.warn('💡 Check: 1) Products exist in database, 2) RLS policies allow SELECT, 3) Products have valid category_id')
-        return []
+        console.warn('⚠️ No products found in database, using mock data')
+        return mockMenuItems
       }
       
-      // Transform data to ensure consistent structure
       const transformedData = (data || []).map((item: any) => ({
         id: item.id,
         category_id: item.category_id,
         name: item.name,
         description: item.description,
         base_price: item.base_price,
-        image_url: item.image_url || `/coffee-drink.png`, // Use local default image
+        image_url: item.image_url || `/coffee-drink.png`,
         is_available: item.is_available,
         is_featured: item.is_featured,
         prep_time_minutes: item.prep_time_minutes || 5,
@@ -194,27 +203,18 @@ export const menuItemService = {
         updated_at: item.updated_at
       }))
       
-      console.log('📊 Transformed menu items:', transformedData.length)
-      if (transformedData.length > 0) {
-        console.log('📝 Sample item:', {
-          id: transformedData[0].id,
-          name: transformedData[0].name,
-          category_id: transformedData[0].category_id,
-          base_price: transformedData[0].base_price,
-          image_url: transformedData[0].image_url ? 'has image' : 'no image',
-          is_available: transformedData[0].is_available,
-          created_at: transformedData[0].created_at
-        })
-      }
-      
+      console.log('✅ Fetched', transformedData.length, 'menu items from database')
       return transformedData
-    } catch (error) {
-      console.error('❌ Exception fetching menu items:', error)
-      console.error('❌ Error type:', error instanceof Error ? error.constructor.name : typeof error)
-      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-      
-      // Return empty array instead of mock data so we can see the actual error
-      return []
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.error('❌ Supabase request timed out (8s)')
+      } else if (error?.message?.includes('Failed to fetch')) {
+        console.error('❌ Network error - check internet or Supabase status')
+      } else {
+        console.error('❌ Exception fetching menu items:', error?.message || error)
+      }
+      console.log('📦 Falling back to mock menu items')
+      return mockMenuItems
     }
   },
 

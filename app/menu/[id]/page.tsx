@@ -13,6 +13,7 @@ import { getProductImage } from "@/lib/product-images"
 import { useState, useEffect, useMemo } from "react"
 import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice } from "@/lib/types"
 import { menuItemService, categoryService, customizationService } from "@/lib/supabase/database"
+import { createBrowserClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
@@ -74,81 +75,100 @@ export default function ProductDetailPage() {
   const [selectedBoostas, setSelectedBoostas] = useState<string[]>([])
 
   // Fetch product, category, and customizations from database
+  const fetchProductData = async () => {
+    if (!productId) return
+    try {
+      setLoading(true)
+
+      const fetchedProduct = await menuItemService.getById(productId)
+      if (!fetchedProduct) {
+        setLoading(false)
+        return
+      }
+
+      setProduct(fetchedProduct)
+
+      const itemName = fetchedProduct.name.toLowerCase()
+      const categoryId = fetchedProduct.category_id || ""
+      const isPowerBowlItem =
+        itemName.includes("power bowl") ||
+        categoryId === "cat-power-bowl" ||
+        fetchedProduct.description?.toLowerCase().includes("build your own")
+      setIsPowerBowl(isPowerBowlItem)
+
+      if (fetchedProduct.category_id) {
+        const categories = await categoryService.getAll()
+        const foundCategory = categories.find((cat) => cat.id === fetchedProduct.category_id)
+        if (foundCategory) setCategory(foundCategory)
+      }
+
+      const fetchedCustomizations = await customizationService.getByMenuItem(productId)
+      const validCustomizations = (fetchedCustomizations || []).filter(
+        (opt: any) =>
+          opt &&
+          opt.id &&
+          opt.option_name &&
+          opt.choices &&
+          Array.isArray(opt.choices) &&
+          opt.choices.length > 0 &&
+          opt.choices.every((ch: any) => ch && ch.id && ch.choice_name)
+      )
+      setCustomizations(validCustomizations)
+
+      const defaultSelections = new Map<string, string[]>()
+      validCustomizations.forEach((option) => {
+        if (option.is_required && option.choices && option.choices.length > 0) {
+          const defaultChoice = option.choices.find((ch: any) => ch.is_default) || option.choices[0]
+          if (defaultChoice) defaultSelections.set(option.id, [defaultChoice.id])
+        }
+      })
+      setSelectedOptions(defaultSelections)
+    } catch (error) {
+      console.error("Error fetching product data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchProductData()
+  }, [productId])
+
+  // Supabase Realtime: re-fetch immediately when this product or its
+  // customizations are updated from the dashboard
   useEffect(() => {
     if (!productId) return
 
-    const fetchProductData = async () => {
-      try {
-        setLoading(true)
-        console.log('🔄 Fetching product details for:', productId)
-        
-        // Fetch product
-        const fetchedProduct = await menuItemService.getById(productId)
-        if (!fetchedProduct) {
-          console.error('❌ Product not found:', productId)
-          setLoading(false)
-          return
+    const supabase = createBrowserClient()
+
+    const channel = supabase
+      .channel(`product-detail-${productId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "menu_items", filter: `id=eq.${productId}` },
+        () => {
+          fetchProductData()
         }
-        
-        console.log('✅ Product fetched:', fetchedProduct.name)
-        setProduct(fetchedProduct)
-
-        // Check if it's a Power Bowl
-        const itemName = fetchedProduct.name.toLowerCase()
-        const categoryId = fetchedProduct.category_id || ""
-        const isPowerBowlItem = itemName.includes("power bowl") || 
-                                categoryId === "cat-power-bowl" ||
-                                fetchedProduct.description?.toLowerCase().includes("build your own")
-        setIsPowerBowl(isPowerBowlItem)
-        console.log('🍲 Is Power Bowl:', isPowerBowlItem)
-
-        // Fetch category
-        if (fetchedProduct.category_id) {
-          const categories = await categoryService.getAll()
-          const foundCategory = categories.find(cat => cat.id === fetchedProduct.category_id)
-          if (foundCategory) {
-            console.log('✅ Category found:', foundCategory.name)
-            setCategory(foundCategory)
-          }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "customization_options", filter: `menu_item_id=eq.${productId}` },
+        () => {
+          fetchProductData()
         }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "customization_choices" },
+        () => {
+          fetchProductData()
+        }
+      )
+      .subscribe()
 
-        // Fetch customizations - ONLY from database, NO auto-generated ones
-        const fetchedCustomizations = await customizationService.getByMenuItem(productId)
-        
-        // Filter and validate customizations - ensure they have proper structure
-        const validCustomizations = (fetchedCustomizations || []).filter((opt: any) => {
-          return opt && 
-                 opt.id && 
-                 opt.option_name && 
-                 opt.choices && 
-                 Array.isArray(opt.choices) &&
-                 opt.choices.length > 0 &&
-                 opt.choices.every((ch: any) => ch && ch.id && ch.choice_name)
-        })
-        
-        console.log('✅ Customizations fetched:', validCustomizations.length, 'valid options')
-        setCustomizations(validCustomizations)
-        
-        // Auto-select default choices for required options
-        const defaultSelections = new Map<string, string[]>()
-        validCustomizations.forEach((option) => {
-          if (option.is_required && option.choices && option.choices.length > 0) {
-            // Find default choice or select first one
-            const defaultChoice = option.choices.find(ch => ch.is_default) || option.choices[0]
-            if (defaultChoice) {
-              defaultSelections.set(option.id, [defaultChoice.id])
-            }
-          }
-        })
-        setSelectedOptions(defaultSelections)
-      } catch (error) {
-        console.error('❌ Error fetching product data:', error)
-      } finally {
-        setLoading(false)
-      }
+    return () => {
+      supabase.removeChannel(channel)
     }
-
-    fetchProductData()
   }, [productId])
 
   const getImageUrl = () => {
