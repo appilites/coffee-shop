@@ -11,7 +11,8 @@ import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
 import { useRouter } from "next/navigation"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
-import { customizationService, comboService } from "@/lib/supabase/database"
+import { comboService } from "@/lib/supabase/database"
+import { productVariationsToCustomizations } from "@/lib/product-variations"
 
 interface CustomizeDialogProps {
   item: MenuItem
@@ -35,36 +36,15 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
   const [availableCombos, setAvailableCombos] = useState<ComboOption[]>([])
   const [loadingCombos, setLoadingCombos] = useState(false)
 
-  // Fetch customizations from database - ONLY use database customizations, NO auto-generated ones
+  // All variations live in menu_items.variations (JSONB) – no separate table lookup needed
   useEffect(() => {
-    if (open) {
-      setLoadingCustomizations(true)
-      customizationService.getByMenuItem(item.id)
-        .then((dbCustomizations) => {
-          // Only use customizations from database - filter out any invalid data
-          const validCustomizations = (dbCustomizations || []).filter((opt: any) => {
-            // Ensure it has required fields and valid structure
-            return opt && 
-                   opt.id && 
-                   opt.option_name && 
-                   opt.choices && 
-                   Array.isArray(opt.choices) &&
-                   opt.choices.length > 0
-          })
-          console.log('✅ Loaded customizations from database:', validCustomizations.length, 'options')
-          setCustomizations(validCustomizations)
-        })
-        .catch((error) => {
-          console.error('❌ Error fetching customizations:', error)
-          setCustomizations([])
-        })
-        .finally(() => {
-          setLoadingCustomizations(false)
-        })
-    } else {
+    if (!open) {
       setCustomizations([])
+      return
     }
-  }, [open, item.id])
+    setCustomizations(productVariationsToCustomizations(item.variations))
+    setLoadingCustomizations(false)
+  }, [open, item.variations])
 
   // Fetch combos from database
   useEffect(() => {

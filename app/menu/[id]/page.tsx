@@ -12,26 +12,27 @@ import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
 import { useState, useEffect, useMemo } from "react"
 import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice } from "@/lib/types"
-import { menuItemService, categoryService, customizationService } from "@/lib/supabase/database"
+import { menuItemService, categoryService } from "@/lib/supabase/database"
+import { productVariationsToCustomizations } from "@/lib/product-variations"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 
-// Power Bowl Options
-const BASE_OPTIONS = [
+// Fallback Power Bowl Options (used only if database has no customizations)
+const FALLBACK_BASE_OPTIONS = [
   { id: "acai", name: "Açaí", priceModifier: 0 },
   { id: "pitaya", name: "Pitaya", priceModifier: 0 },
   { id: "oatmeal", name: "Oatmeal", priceModifier: 0 },
 ]
 
-const GRANOLA_OPTIONS = [
+const FALLBACK_GRANOLA_OPTIONS = [
   { id: "granola", name: "Granola", priceModifier: 0 },
   { id: "no-granola", name: "No Granola", priceModifier: 0 },
   { id: "blueberry-flax", name: "Blueberry Flax", priceModifier: 0.5 },
 ]
 
-const FRUIT_OPTIONS = [
+const FALLBACK_FRUIT_OPTIONS = [
   { id: "banana", name: "Banana", priceModifier: 0 },
   { id: "blueberry", name: "Blueberry", priceModifier: 0 },
   { id: "kiwi", name: "Kiwi", priceModifier: 0 },
@@ -39,7 +40,7 @@ const FRUIT_OPTIONS = [
   { id: "strawberry", name: "Strawberry", priceModifier: 0 },
 ]
 
-const BOOSTA_OPTIONS = [
+const FALLBACK_BOOSTA_OPTIONS = [
   { id: "almond", name: "Almond", priceModifier: 0.5 },
   { id: "bee-pollen", name: "Bee Pollen", priceModifier: 0.5 },
   { id: "cacao-nibs", name: "Cacao Nibs", priceModifier: 0.5 },
@@ -69,10 +70,39 @@ export default function ProductDetailPage() {
   const [isPowerBowl, setIsPowerBowl] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("right")
+  const [useFallbackPowerBowl, setUseFallbackPowerBowl] = useState(false)
   const [selectedBase, setSelectedBase] = useState<string>("")
   const [selectedGranola, setSelectedGranola] = useState<string>("")
   const [selectedFruits, setSelectedFruits] = useState<string[]>([])
   const [selectedBoostas, setSelectedBoostas] = useState<string[]>([])
+
+  // Get Power Bowl customizations from database (converted to step format)
+  const powerBowlSteps = useMemo(() => {
+    if (!isPowerBowl || customizations.length === 0) return []
+    
+    return customizations.map((opt, index) => ({
+      stepNumber: index + 1,
+      optionId: opt.id,
+      title: opt.option_name,
+      subtitle: opt.is_required 
+        ? (opt.option_type === 'multiple' ? 'Select your choices (required)' : 'Select one option (required)')
+        : 'Optional - select your preferences',
+      type: opt.option_type,
+      isRequired: opt.is_required,
+      choices: opt.choices.map(ch => ({
+        id: ch.id,
+        name: ch.choice_name,
+        priceModifier: ch.price_modifier || 0,
+        isDefault: ch.is_default
+      }))
+    }))
+  }, [isPowerBowl, customizations])
+
+  // Total steps for Power Bowl (from database or fallback)
+  const totalPowerBowlSteps = useMemo(() => {
+    if (useFallbackPowerBowl) return 4
+    return powerBowlSteps.length > 0 ? powerBowlSteps.length : 4
+  }, [useFallbackPowerBowl, powerBowlSteps])
 
   // Fetch product, category, and customizations from database
   const fetchProductData = async () => {
@@ -102,18 +132,16 @@ export default function ProductDetailPage() {
         if (foundCategory) setCategory(foundCategory)
       }
 
-      const fetchedCustomizations = await customizationService.getByMenuItem(productId)
-      const validCustomizations = (fetchedCustomizations || []).filter(
-        (opt: any) =>
-          opt &&
-          opt.id &&
-          opt.option_name &&
-          opt.choices &&
-          Array.isArray(opt.choices) &&
-          opt.choices.length > 0 &&
-          opt.choices.every((ch: any) => ch && ch.id && ch.choice_name)
-      )
+      // All variations are stored in menu_items.variations (JSONB)
+      const validCustomizations = productVariationsToCustomizations(fetchedProduct.variations)
       setCustomizations(validCustomizations)
+
+      if (isPowerBowlItem && validCustomizations.length === 0) {
+        console.log("⚠️ No Power Bowl variations (product API or DB), using fallback options")
+        setUseFallbackPowerBowl(true)
+      } else {
+        setUseFallbackPowerBowl(false)
+      }
 
       const defaultSelections = new Map<string, string[]>()
       validCustomizations.forEach((option) => {
@@ -146,20 +174,6 @@ export default function ProductDetailPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "menu_items", filter: `id=eq.${productId}` },
-        () => {
-          fetchProductData()
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "customization_options", filter: `menu_item_id=eq.${productId}` },
-        () => {
-          fetchProductData()
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "customization_choices" },
         () => {
           fetchProductData()
         }
@@ -232,7 +246,7 @@ export default function ProductDetailPage() {
 
   // Power Bowl handlers
   const handleNext = () => {
-    if (currentStep < 4) {
+    if (currentStep < totalPowerBowlSteps) {
       setSlideDirection("right")
       setTimeout(() => setCurrentStep(currentStep + 1), 10)
     }
@@ -262,71 +276,90 @@ export default function ProductDetailPage() {
   }
 
   const canProceedPowerBowl = () => {
-    switch (currentStep) {
-      case 1:
-        return selectedBase !== ""
-      case 2:
-        return selectedGranola !== ""
-      case 3:
-        return selectedFruits.length === 3
-      case 4:
-        return true
-      default:
-        return false
+    if (useFallbackPowerBowl) {
+      switch (currentStep) {
+        case 1: return selectedBase !== ""
+        case 2: return selectedGranola !== ""
+        case 3: return selectedFruits.length === 3
+        case 4: return true
+        default: return false
+      }
     }
+    const step = powerBowlSteps[currentStep - 1]
+    if (!step) return true
+    const selections = selectedOptions.get(step.optionId) || []
+    if (step.isRequired) {
+      if (step.type === 'multiple') {
+        const pick3Step = step.title.toLowerCase().includes('pick 3') || step.title.toLowerCase().includes('3 fruits')
+        return pick3Step ? selections.length === 3 : selections.length > 0
+      }
+      return selections.length > 0
+    }
+    return true
   }
 
   const calculatePowerBowlPrice = () => {
     if (!product) return 0
     let price = product.base_price || 0
 
-    const base = BASE_OPTIONS.find(b => b.id === selectedBase)
-    if (base) price += base.priceModifier
-
-    const granola = GRANOLA_OPTIONS.find(g => g.id === selectedGranola)
-    if (granola) price += granola.priceModifier
-
-    selectedFruits.forEach(fruitId => {
-      const fruit = FRUIT_OPTIONS.find(f => f.id === fruitId)
-      if (fruit) price += fruit.priceModifier
-    })
-
-    selectedBoostas.forEach(boostaId => {
-      const boosta = BOOSTA_OPTIONS.find(b => b.id === boostaId)
-      if (boosta) price += boosta.priceModifier
-    })
+    if (useFallbackPowerBowl) {
+      const base = FALLBACK_BASE_OPTIONS.find(b => b.id === selectedBase)
+      if (base) price += base.priceModifier
+      const granola = FALLBACK_GRANOLA_OPTIONS.find(g => g.id === selectedGranola)
+      if (granola) price += granola.priceModifier
+      selectedFruits.forEach(fruitId => {
+        const fruit = FALLBACK_FRUIT_OPTIONS.find(f => f.id === fruitId)
+        if (fruit) price += fruit.priceModifier
+      })
+      selectedBoostas.forEach(boostaId => {
+        const boosta = FALLBACK_BOOSTA_OPTIONS.find(b => b.id === boostaId)
+        if (boosta) price += boosta.priceModifier
+      })
+    } else {
+      selectedOptions.forEach((choiceIds, optionId) => {
+        const option = customizations.find(c => c.id === optionId)
+        if (option) {
+          choiceIds.forEach(choiceId => {
+            const choice = option.choices.find(ch => ch.id === choiceId)
+            if (choice) price += choice.price_modifier || 0
+          })
+        }
+      })
+    }
 
     return price * quantity
   }
 
   const getStepTitle = () => {
-    switch (currentStep) {
-      case 1:
-        return "Pick your Base"
-      case 2:
-        return "Add Granola or Not"
-      case 3:
-        return "Pick 3 Fruits"
-      case 4:
-        return "Agaves Boosta"
-      default:
-        return ""
+    if (useFallbackPowerBowl) {
+      switch (currentStep) {
+        case 1: return "Pick your Base"
+        case 2: return "Add Granola or Not"
+        case 3: return "Pick 3 Fruits"
+        case 4: return "Agaves Boosta"
+        default: return ""
+      }
     }
+    const step = powerBowlSteps[currentStep - 1]
+    return step?.title ?? ""
   }
 
   const getStepSubtitle = () => {
-    switch (currentStep) {
-      case 1:
-        return "Choose your bowl base"
-      case 2:
-        return "Select your granola option"
-      case 3:
-        return `Select exactly 3 fruits (${selectedFruits.length}/3 selected)`
-      case 4:
-        return "Add optional boosts (multiple selections allowed)"
-      default:
-        return ""
+    if (useFallbackPowerBowl) {
+      switch (currentStep) {
+        case 1: return "Choose your bowl base"
+        case 2: return "Select your granola option"
+        case 3: return `Select exactly 3 fruits (${selectedFruits.length}/3 selected)`
+        case 4: return "Add optional boosts (multiple selections allowed)"
+        default: return ""
+      }
     }
+    const step = powerBowlSteps[currentStep - 1]
+    if (!step) return ""
+    const selections = selectedOptions.get(step.optionId) || []
+    const pick3 = step.title.toLowerCase().includes('pick 3') || step.title.toLowerCase().includes('3 fruits')
+    if (pick3) return `Select exactly 3 fruits (${selections.length}/3 selected)`
+    return step.subtitle
   }
 
   // Handle add to cart directly (no dialog)
@@ -334,51 +367,68 @@ export default function ProductDetailPage() {
     if (!product) return
 
     if (isPowerBowl) {
-      // Power Bowl customizations
-      const customizationData = [
-        {
-          optionId: "base",
-          optionName: "Base",
-          choices: [{
-            id: selectedBase,
-            name: BASE_OPTIONS.find(b => b.id === selectedBase)?.name || "",
-            priceModifier: BASE_OPTIONS.find(b => b.id === selectedBase)?.priceModifier || 0,
-          }],
-        },
-        {
-          optionId: "granola",
-          optionName: "Granola",
-          choices: [{
-            id: selectedGranola,
-            name: GRANOLA_OPTIONS.find(g => g.id === selectedGranola)?.name || "",
-            priceModifier: GRANOLA_OPTIONS.find(g => g.id === selectedGranola)?.priceModifier || 0,
-          }],
-        },
-        {
-          optionId: "fruits",
-          optionName: "Fruits",
-          choices: selectedFruits.map(fruitId => {
-            const fruit = FRUIT_OPTIONS.find(f => f.id === fruitId)!
+      let customizationData: Array<{ optionId: string; optionName: string; choices: Array<{ id: string; name: string; priceModifier: number }> }>
+
+      if (useFallbackPowerBowl) {
+        customizationData = [
+          {
+            optionId: "base",
+            optionName: "Base",
+            choices: [{
+              id: selectedBase,
+              name: FALLBACK_BASE_OPTIONS.find(b => b.id === selectedBase)?.name || "",
+              priceModifier: FALLBACK_BASE_OPTIONS.find(b => b.id === selectedBase)?.priceModifier || 0,
+            }],
+          },
+          {
+            optionId: "granola",
+            optionName: "Granola",
+            choices: [{
+              id: selectedGranola,
+              name: FALLBACK_GRANOLA_OPTIONS.find(g => g.id === selectedGranola)?.name || "",
+              priceModifier: FALLBACK_GRANOLA_OPTIONS.find(g => g.id === selectedGranola)?.priceModifier || 0,
+            }],
+          },
+          {
+            optionId: "fruits",
+            optionName: "Fruits",
+            choices: selectedFruits.map(fruitId => {
+              const fruit = FALLBACK_FRUIT_OPTIONS.find(f => f.id === fruitId)!
+              return { id: fruitId, name: fruit.name, priceModifier: fruit.priceModifier }
+            }),
+          },
+          ...(selectedBoostas.length > 0 ? [{
+            optionId: "boostas",
+            optionName: "Agaves Boosta",
+            choices: selectedBoostas.map(boostaId => {
+              const boosta = FALLBACK_BOOSTA_OPTIONS.find(b => b.id === boostaId)!
+              return { id: boostaId, name: boosta.name, priceModifier: boosta.priceModifier }
+            }),
+          }] : []),
+        ]
+      } else {
+        customizationData = Array.from(selectedOptions.entries())
+          .map(([optionId, choiceIds]) => {
+            const option = customizations.find(c => c.id === optionId)
+            if (!option) return null
             return {
-              id: fruitId,
-              name: fruit.name,
-              priceModifier: fruit.priceModifier,
+              optionId,
+              optionName: option.option_name,
+              choices: choiceIds
+                .map(choiceId => {
+                  const choice = option.choices.find(ch => ch.id === choiceId)
+                  if (!choice) return null
+                  return {
+                    id: choice.id,
+                    name: choice.choice_name,
+                    priceModifier: choice.price_modifier || 0,
+                  }
+                })
+                .filter(Boolean) as Array<{ id: string; name: string; priceModifier: number }>,
             }
-          }),
-        },
-        ...(selectedBoostas.length > 0 ? [{
-          optionId: "boostas",
-          optionName: "Agaves Boosta",
-          choices: selectedBoostas.map(boostaId => {
-            const boosta = BOOSTA_OPTIONS.find(b => b.id === boostaId)!
-            return {
-              id: boostaId,
-              name: boosta.name,
-              priceModifier: boosta.priceModifier,
-            }
-          }),
-        }] : []),
-      ]
+          })
+          .filter(Boolean) as typeof customizationData
+      }
 
       addItem({
         id: `${product.id}-${Date.now()}`,
@@ -610,7 +660,7 @@ export default function ProductDetailPage() {
                   </h3>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Step {currentStep} of 4</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Step {currentStep} of {totalPowerBowlSteps}</p>
                       <p className="text-base sm:text-lg font-semibold text-purple-700 dark:text-purple-300 mt-1">
                         {getStepTitle()}
                       </p>
@@ -629,7 +679,7 @@ export default function ProductDetailPage() {
 
                 {/* Step Progress Indicator */}
                 <div className="flex gap-1 mb-4 sm:mb-5">
-                  {[1, 2, 3, 4].map((step) => (
+                  {Array.from({ length: totalPowerBowlSteps }, (_, i) => i + 1).map((step) => (
                     <div
                       key={step}
                       className={`h-2 flex-1 rounded-full transition-all ${
@@ -641,115 +691,139 @@ export default function ProductDetailPage() {
 
                 {/* Step Content */}
                 <div className="space-y-4 sm:space-y-5">
-                  {/* Step 1: Base */}
-                  {currentStep === 1 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                      {BASE_OPTIONS.map((base) => (
-                        <button
-                          key={base.id}
-                          onClick={() => setSelectedBase(base.id)}
-                          className={`p-4 rounded-lg border-2 text-left transition-all ${
-                            selectedBase === base.id
-                              ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                              : "border-border hover:border-purple-300 hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-base sm:text-lg font-semibold">{base.name}</span>
-                            {base.priceModifier > 0 && (
-                              <span className="text-sm text-muted-foreground">
-                                +${base.priceModifier.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Step 2: Granola */}
-                  {currentStep === 2 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                      {GRANOLA_OPTIONS.map((granola) => (
-                        <button
-                          key={granola.id}
-                          onClick={() => setSelectedGranola(granola.id)}
-                          className={`p-4 rounded-lg border-2 text-left transition-all ${
-                            selectedGranola === granola.id
-                              ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                              : "border-border hover:border-purple-300 hover:bg-muted/50"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-base sm:text-lg font-semibold">{granola.name}</span>
-                            {granola.priceModifier > 0 && (
-                              <span className="text-sm text-muted-foreground">
-                                +${granola.priceModifier.toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Step 3: Fruits */}
-                  {currentStep === 3 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                      {FRUIT_OPTIONS.map((fruit) => {
-                        const isSelected = selectedFruits.includes(fruit.id)
-                        const isDisabled = !isSelected && selectedFruits.length >= 3
-                        return (
-                          <button
-                            key={fruit.id}
-                            onClick={() => handleFruitToggle(fruit.id)}
-                            disabled={isDisabled}
-                            className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
-                              isSelected
-                                ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                                : isDisabled
-                                ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                                : "border-border hover:border-purple-300 hover:bg-muted/50"
-                            }`}
-                          >
-                            <span className="text-base sm:text-lg font-semibold">{fruit.name}</span>
-                            {isSelected && (
-                              <div className="mt-1 text-purple-600 dark:text-purple-400 text-sm">✓ Selected</div>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* Step 4: Boostas */}
-                  {currentStep === 4 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                      {BOOSTA_OPTIONS.map((boosta) => {
-                        const isSelected = selectedBoostas.includes(boosta.id)
-                        return (
-                          <button
-                            key={boosta.id}
-                            onClick={() => handleBoostaToggle(boosta.id)}
-                            className={`p-3 rounded-lg border-2 text-left transition-all ${
-                              isSelected
-                                ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                                : "border-border hover:border-purple-300 hover:bg-muted/50"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm sm:text-base font-semibold">{boosta.name}</span>
-                              {isSelected && (
-                                <span className="text-purple-600 dark:text-purple-400 text-sm">✓</span>
-                              )}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              +${boosta.priceModifier.toFixed(2)}
-                            </span>
-                          </button>
-                        )
-                      })}
-                    </div>
+                  {useFallbackPowerBowl ? (
+                    <>
+                      {currentStep === 1 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                          {FALLBACK_BASE_OPTIONS.map((base) => (
+                            <button
+                              key={base.id}
+                              onClick={() => setSelectedBase(base.id)}
+                              className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                selectedBase === base.id
+                                  ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                  : "border-border hover:border-purple-300 hover:bg-muted/50"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-base sm:text-lg font-semibold">{base.name}</span>
+                                {base.priceModifier > 0 && (
+                                  <span className="text-sm text-muted-foreground">+${base.priceModifier.toFixed(2)}</span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {currentStep === 2 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                          {FALLBACK_GRANOLA_OPTIONS.map((granola) => (
+                            <button
+                              key={granola.id}
+                              onClick={() => setSelectedGranola(granola.id)}
+                              className={`p-4 rounded-lg border-2 text-left transition-all ${
+                                selectedGranola === granola.id
+                                  ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                  : "border-border hover:border-purple-300 hover:bg-muted/50"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-base sm:text-lg font-semibold">{granola.name}</span>
+                                {granola.priceModifier > 0 && (
+                                  <span className="text-sm text-muted-foreground">+${granola.priceModifier.toFixed(2)}</span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {currentStep === 3 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                          {FALLBACK_FRUIT_OPTIONS.map((fruit) => {
+                            const isSelected = selectedFruits.includes(fruit.id)
+                            const isDisabled = !isSelected && selectedFruits.length >= 3
+                            return (
+                              <button
+                                key={fruit.id}
+                                onClick={() => handleFruitToggle(fruit.id)}
+                                disabled={isDisabled}
+                                className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
+                                  isSelected
+                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                    : isDisabled
+                                      ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
+                                      : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                }`}
+                              >
+                                <span className="text-base sm:text-lg font-semibold">{fruit.name}</span>
+                                {isSelected && <div className="mt-1 text-purple-600 dark:text-purple-400 text-sm">✓ Selected</div>}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {currentStep === 4 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                          {FALLBACK_BOOSTA_OPTIONS.map((boosta) => {
+                            const isSelected = selectedBoostas.includes(boosta.id)
+                            return (
+                              <button
+                                key={boosta.id}
+                                onClick={() => handleBoostaToggle(boosta.id)}
+                                className={`p-3 rounded-lg border-2 text-left transition-all ${
+                                  isSelected
+                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                    : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm sm:text-base font-semibold">{boosta.name}</span>
+                                  {isSelected && <span className="text-purple-600 dark:text-purple-400 text-sm">✓</span>}
+                                </div>
+                                <span className="text-xs text-muted-foreground">+${boosta.priceModifier.toFixed(2)}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    (() => {
+                      const step = powerBowlSteps[currentStep - 1]
+                      if (!step) return null
+                      const choices = step.choices || []
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          {choices.map((choice) => {
+                            const selected = selectedOptions.get(step.optionId) || []
+                            const isSelected = selected.includes(choice.id)
+                            const pick3Step = step.title.toLowerCase().includes("pick 3") || step.title.toLowerCase().includes("3 fruits")
+                            const isDisabled = pick3Step && !isSelected && selected.length >= 3
+                            return (
+                              <button
+                                key={choice.id}
+                                onClick={() => handleOptionChange(step.optionId, choice.id, step.type === "multiple")}
+                                disabled={isDisabled}
+                                className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all ${
+                                  isSelected
+                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                    : isDisabled
+                                      ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
+                                      : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-sm sm:text-base font-semibold">{choice.name}</span>
+                                  {choice.priceModifier > 0 && (
+                                    <span className="text-xs sm:text-sm text-muted-foreground">+${choice.priceModifier.toFixed(2)}</span>
+                                  )}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()
                   )}
                 </div>
 
@@ -766,7 +840,7 @@ export default function ProductDetailPage() {
                       Back
                     </Button>
                   )}
-                  {currentStep < 4 ? (
+                  {currentStep < totalPowerBowlSteps ? (
                     <Button
                       onClick={handleNext}
                       disabled={!canProceedPowerBowl()}
@@ -933,7 +1007,7 @@ export default function ProductDetailPage() {
             )}
 
             {/* Quantity for Power Bowl - Show on last step */}
-            {isPowerBowl && currentStep === 4 && (
+            {isPowerBowl && currentStep === totalPowerBowlSteps && (
               <>
                 <div className="mb-4 sm:mb-5 md:mb-6">
                   <Label className="text-sm sm:text-base font-semibold mb-2 block">Quantity</Label>

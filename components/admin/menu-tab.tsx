@@ -23,7 +23,7 @@ export function MenuTab() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    category: "coffee",
+    category_id: "",
     price: "",
     image_url: "",
     available: true,
@@ -35,12 +35,12 @@ export function MenuTab() {
 
   const fetchItems = async () => {
     const supabase = createBrowserClient()
-    const { data, error } = await supabase.from("menu_items").select("*").order("category").order("name")
+    const { data, error } = await supabase.from("menu_items").select("*").order("name")
 
     if (error) {
       console.error("[v0] Error fetching menu items:", error)
     } else {
-      setItems(data || [])
+      setItems((data || []) as MenuItem[])
     }
     setLoading(false)
   }
@@ -49,12 +49,20 @@ export function MenuTab() {
     e.preventDefault()
     const supabase = createBrowserClient()
 
-    const itemData = {
-      ...formData,
-      price: Number.parseFloat(formData.price),
+    const itemData: Record<string, unknown> = {
+      name: formData.name,
+      description: formData.description || null,
+      category_id: formData.category_id || null,
+      base_price: Number.parseFloat(formData.price) || 0,
+      image_url: formData.image_url || null,
+      is_available: formData.available,
+      updated_at: new Date().toISOString(),
     }
 
     if (editingItem) {
+      if (Array.isArray((editingItem as any).variations)) {
+        itemData.variations = (editingItem as any).variations
+      }
       const { error } = await supabase.from("menu_items").update(itemData).eq("id", editingItem.id)
 
       if (error) {
@@ -62,7 +70,13 @@ export function MenuTab() {
         return
       }
     } else {
-      const { error } = await supabase.from("menu_items").insert([itemData])
+      const newId = `item-${Date.now()}`
+      const { error } = await supabase.from("menu_items").insert([{
+        id: newId,
+        ...itemData,
+        is_featured: false,
+        prep_time_minutes: 5,
+      }])
 
       if (error) {
         console.error("[v0] Error creating item:", error)
@@ -72,19 +86,20 @@ export function MenuTab() {
 
     setIsDialogOpen(false)
     setEditingItem(null)
-    setFormData({ name: "", description: "", category: "coffee", price: "", image_url: "", available: true })
+    setFormData({ name: "", description: "", category_id: "", price: "", image_url: "", available: true })
     fetchItems()
   }
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item)
+    const row = item as any
     setFormData({
       name: item.name,
       description: item.description || "",
-      category: item.category,
-      price: item.price.toString(),
+      category_id: row.category_id ?? "",
+      price: String(row.base_price ?? item.base_price ?? 0),
       image_url: item.image_url || "",
-      available: item.available,
+      available: row.is_available ?? item.is_available ?? true,
     })
     setIsDialogOpen(true)
   }
@@ -104,7 +119,7 @@ export function MenuTab() {
 
   const toggleAvailability = async (id: string, available: boolean) => {
     const supabase = createBrowserClient()
-    const { error } = await supabase.from("menu_items").update({ available: !available }).eq("id", id)
+    const { error } = await supabase.from("menu_items").update({ is_available: !available, updated_at: new Date().toISOString() }).eq("id", id)
 
     if (error) {
       console.error("[v0] Error updating availability:", error)
@@ -133,7 +148,7 @@ export function MenuTab() {
                 setFormData({
                   name: "",
                   description: "",
-                  category: "coffee",
+                  category_id: "",
                   price: "",
                   image_url: "",
                   available: true,
@@ -168,19 +183,13 @@ export function MenuTab() {
                 />
               </div>
               <div>
-                <Label htmlFor="category">Category</Label>
-                <select
-                  id="category"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                >
-                  <option value="coffee">Coffee</option>
-                  <option value="espresso">Espresso</option>
-                  <option value="tea">Tea</option>
-                  <option value="food">Food</option>
-                  <option value="other">Other</option>
-                </select>
+                <Label htmlFor="category_id">Category ID</Label>
+                <Input
+                  id="category_id"
+                  placeholder="e.g. cat-power-bowl, cat-17"
+                  value={formData.category_id}
+                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                />
               </div>
               <div>
                 <Label htmlFor="price">Price ($)</Label>
@@ -219,8 +228,13 @@ export function MenuTab() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <Card key={item.id} className={`p-4 ${!item.available ? "opacity-60" : ""}`}>
+        {items.map((item) => {
+          const row = item as any
+          const available = row.is_available ?? true
+          const price = row.base_price ?? 0
+          const variationsCount = Array.isArray(row.variations) ? row.variations.length : 0
+          return (
+          <Card key={item.id} className={`p-4 ${!available ? "opacity-60" : ""}`}>
             {item.image_url && (
               <img
                 src={item.image_url || "/placeholder.svg"}
@@ -231,25 +245,29 @@ export function MenuTab() {
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-semibold text-foreground">{item.name}</h3>
-                <p className="text-sm text-muted-foreground capitalize">{item.category}</p>
+                <p className="text-sm text-muted-foreground">{row.category_id || "—"}</p>
               </div>
-              <p className="font-bold text-foreground">${item.price.toFixed(2)}</p>
+              <p className="font-bold text-foreground">${Number(price).toFixed(2)}</p>
             </div>
             {item.description && <p className="text-sm text-muted-foreground mb-3">{item.description}</p>}
+            {variationsCount > 0 && (
+              <p className="text-xs text-muted-foreground mb-2">{variationsCount} variation option(s)</p>
+            )}
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => handleEdit(item)}>
                 <Pencil className="h-3 w-3 mr-1" />
                 Edit
               </Button>
-              <Button variant="outline" size="sm" onClick={() => toggleAvailability(item.id, item.available)}>
-                {item.available ? "Disable" : "Enable"}
+              <Button variant="outline" size="sm" onClick={() => toggleAvailability(item.id, available)}>
+                {available ? "Disable" : "Enable"}
               </Button>
               <Button variant="outline" size="sm" onClick={() => handleDelete(item.id)} className="text-destructive">
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
           </Card>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

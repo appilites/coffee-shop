@@ -137,6 +137,7 @@ export async function createDatabaseTables() {
         is_available BOOLEAN DEFAULT true,
         is_featured BOOLEAN DEFAULT false,
         prep_time_minutes INTEGER DEFAULT 5,
+        variations JSONB DEFAULT '[]',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       );

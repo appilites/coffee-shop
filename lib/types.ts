@@ -9,6 +9,18 @@ export interface MenuCategory {
   updated_at: string
 }
 
+/** Product-level variation (from products API / menu_items.variations JSONB) */
+export interface ProductVariation {
+  id: string
+  type: "radio" | "checkbox"
+  title: string
+  options: Array<{
+    id: string
+    label: string
+    priceModifier: number
+  }>
+}
+
 export interface MenuItem {
   id: string
   category_id: string | null
@@ -21,6 +33,8 @@ export interface MenuItem {
   prep_time_minutes: number
   created_at: string
   updated_at: string
+  /** Variations from products API (stored on product, not in customization_options) */
+  variations?: ProductVariation[]
 }
 
 export interface CustomizationOption {

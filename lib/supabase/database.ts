@@ -200,7 +200,8 @@ export const menuItemService = {
         is_featured: item.is_featured,
         prep_time_minutes: item.prep_time_minutes || 5,
         created_at: item.created_at,
-        updated_at: item.updated_at
+        updated_at: item.updated_at,
+        variations: Array.isArray(item.variations) ? item.variations : undefined
       }))
       
       console.log('✅ Fetched', transformedData.length, 'menu items from database')
@@ -262,7 +263,8 @@ export const menuItemService = {
 
   async getById(id: string): Promise<MenuItem | null> {
     if (useMockData || !supabase) {
-      return mockMenuItems.find(item => item.id === id) || null
+      const found = mockMenuItems.find(item => item.id === id) || null
+      return found ? { ...found, variations: (found as any).variations } : null
     }
 
     try {
@@ -273,7 +275,11 @@ export const menuItemService = {
         .single()
       
       if (error) throw error
-      return data
+      if (!data) return null
+      return {
+        ...data,
+        variations: Array.isArray((data as any).variations) ? (data as any).variations : undefined
+      }
     } catch (error) {
       console.error('Error fetching menu item:', error)
       return mockMenuItems.find(item => item.id === id) || null
