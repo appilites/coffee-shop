@@ -359,8 +359,8 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
                     onClick={() => handleOptionChange(option.id, choice.id, false)}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                       isSelected
-                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                        : "border-border hover:border-purple-300 hover:bg-muted/50"
+                        ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                        : "border-border hover:border-brand/50 hover:bg-muted/50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -385,14 +385,14 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
                     onClick={() => handleOptionChange(option.id, choice.id, true)}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                       isSelected
-                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                        : "border-border hover:border-purple-300 hover:bg-muted/50"
+                        ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                        : "border-border hover:border-brand/50 hover:bg-muted/50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {isSelected && (
-                          <span className="text-purple-600 dark:text-purple-400 text-sm">✓</span>
+                          <span className="text-brand text-sm">✓</span>
                         )}
                         <span className="text-lg font-semibold">{choice.choice_name}</span>
                       </div>
@@ -441,15 +441,15 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
                 onClick={() => handleComboToggle(combo.id)}
                 className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                   isSelected
-                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                    : "border-border hover:border-purple-300 hover:bg-muted/50"
+                    ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                    : "border-border hover:border-brand/50 hover:bg-muted/50"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       {isSelected && (
-                        <span className="text-purple-600 dark:text-purple-400 text-sm">✓</span>
+                        <span className="text-brand text-sm">✓</span>
                       )}
                       <span className="text-lg font-semibold">{combo.name}</span>
                     </div>
@@ -512,8 +512,8 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
           <DialogHeader className="sr-only">
             <DialogTitle>Customize {item.name}</DialogTitle>
           </DialogHeader>
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-            <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-amber-950/40 to-stone-900/90 dark:from-[#2a241c] dark:to-[#181511]">
+            <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
               {item.name}
             </h2>
           </div>
@@ -532,8 +532,8 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
           <DialogHeader className="sr-only">
             <DialogTitle>Customize {item.name}</DialogTitle>
           </DialogHeader>
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
-            <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-amber-950/40 to-stone-900/90 dark:from-[#2a241c] dark:to-[#181511]">
+            <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
               {item.name}
             </h2>
           </div>
@@ -581,8 +581,8 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
         </DialogHeader>
 
         {/* Header - Same style as Power Bowl */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 shrink-0">
-          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100 mb-1">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-amber-950/40 to-stone-900/90 dark:from-[#2a241c] dark:to-[#181511] shrink-0">
+          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground mb-1">
             {item.name}
           </h2>
           <div className="flex items-center justify-between gap-2">
@@ -590,7 +590,7 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
               <p className="text-xs sm:text-sm text-muted-foreground">
                 Step {currentStep} of {totalSteps}
               </p>
-              <p className="text-base sm:text-lg font-semibold text-purple-700 dark:text-purple-300 mt-1">
+              <p className="text-base sm:text-lg font-semibold text-brand mt-1">
                 {getStepTitle()}
               </p>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
@@ -618,7 +618,7 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
             <div
               key={index + 1}
               className={`h-2 flex-1 rounded-full transition-all ${
-                index + 1 <= currentStep ? "bg-gradient-to-r from-purple-500 to-pink-500" : "bg-muted"
+                index + 1 <= currentStep ? "gradient-copper-gold" : "bg-muted"
               }`}
             />
           ))}

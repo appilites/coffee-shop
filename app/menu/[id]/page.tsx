@@ -670,14 +670,14 @@ export default function ProductDetailPage() {
             {isPowerBowl ? (
               <div className="mb-4 sm:mb-5 md:mb-6">
                 {/* Step Header */}
-                <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                  <h3 className="font-serif text-lg sm:text-xl md:text-2xl font-bold text-purple-900 dark:text-purple-100 mb-2">
+                <div className="mb-4 sm:mb-5 p-3 sm:p-4 bg-gradient-to-r from-amber-950/40 to-stone-900/90 dark:from-[#2a241c] dark:to-[#181511] rounded-lg border border-border">
+                  <h3 className="font-serif text-lg sm:text-xl md:text-2xl font-bold text-foreground mb-2">
                     Build your own POWER BOWL
                   </h3>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs sm:text-sm text-muted-foreground">Step {currentStep} of {totalPowerBowlSteps}</p>
-                      <p className="text-base sm:text-lg font-semibold text-purple-700 dark:text-purple-300 mt-1">
+                      <p className="text-base sm:text-lg font-semibold text-brand mt-1">
                         {getStepTitle()}
                       </p>
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -699,7 +699,7 @@ export default function ProductDetailPage() {
                     <div
                       key={step}
                       className={`h-2 flex-1 rounded-full transition-all ${
-                        step <= currentStep ? "bg-gradient-to-r from-purple-500 to-pink-500" : "bg-muted"
+                        step <= currentStep ? "gradient-copper-gold" : "bg-muted"
                       }`}
                     />
                   ))}
@@ -717,8 +717,8 @@ export default function ProductDetailPage() {
                               onClick={() => setSelectedBase(base.id)}
                               className={`p-4 rounded-lg border-2 text-left transition-all ${
                                 selectedBase === base.id
-                                  ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                                  : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                  ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                                  : "border-border hover:border-brand/50 hover:bg-muted/50"
                               }`}
                             >
                               <div className="flex items-center justify-between">
@@ -739,8 +739,8 @@ export default function ProductDetailPage() {
                               onClick={() => setSelectedGranola(granola.id)}
                               className={`p-4 rounded-lg border-2 text-left transition-all ${
                                 selectedGranola === granola.id
-                                  ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                                  : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                  ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                                  : "border-border hover:border-brand/50 hover:bg-muted/50"
                               }`}
                             >
                               <div className="flex items-center justify-between">
@@ -765,14 +765,14 @@ export default function ProductDetailPage() {
                                 disabled={isDisabled}
                                 className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
                                   isSelected
-                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                    ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
                                     : isDisabled
                                       ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                                      : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                      : "border-border hover:border-brand/50 hover:bg-muted/50"
                                 }`}
                               >
                                 <span className="text-base sm:text-lg font-semibold">{fruit.name}</span>
-                                {isSelected && <div className="mt-1 text-purple-600 dark:text-purple-400 text-sm">✓ Selected</div>}
+                                {isSelected && <div className="mt-1 text-brand text-sm">✓ Selected</div>}
                               </button>
                             )
                           })}
@@ -788,13 +788,13 @@ export default function ProductDetailPage() {
                                 onClick={() => handleBoostaToggle(boosta.id)}
                                 className={`p-3 rounded-lg border-2 text-left transition-all ${
                                   isSelected
-                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
-                                    : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                    ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                                    : "border-border hover:border-brand/50 hover:bg-muted/50"
                                 }`}
                               >
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-sm sm:text-base font-semibold">{boosta.name}</span>
-                                  {isSelected && <span className="text-purple-600 dark:text-purple-400 text-sm">✓</span>}
+                                  {isSelected && <span className="text-brand text-sm">✓</span>}
                                 </div>
                                 <span className="text-xs text-muted-foreground">+${boosta.priceModifier.toFixed(2)}</span>
                               </button>
@@ -822,10 +822,10 @@ export default function ProductDetailPage() {
                                 disabled={isDisabled}
                                 className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all ${
                                   isSelected
-                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-md"
+                                    ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
                                     : isDisabled
                                       ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                                      : "border-border hover:border-purple-300 hover:bg-muted/50"
+                                      : "border-border hover:border-brand/50 hover:bg-muted/50"
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-2">
