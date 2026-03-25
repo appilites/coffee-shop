@@ -1,0 +1,24 @@
+Druids Nutrition — Supabase email templates (link-only, matches the app)
+========================================================================
+
+Where to paste
+--------------
+1. https://supabase.com/dashboard → your project → Authentication → Email templates
+2. Set Subject per template (e.g. "Verify your email — Druids Nutrition")
+3. Body: copy from the matching .html file (inside <body>...</body> if the editor needs only a fragment)
+
+Files → Dashboard template name
+--------------------------------
+01-confirm-signup.html   →  Confirm signup
+02-reset-password.html   →  Reset password
+03-magic-link.html       →  Magic link
+04-change-email.html     →  Change email address
+
+Placeholders (do not remove from HTML)
+--------------------------------------
+  {{ .ConfirmationURL }}  — required for confirm / reset / magic link / change email
+  {{ .Email }}            — reset password template
+  {{ .NewEmail }}         — change email template
+  {{ .SiteURL }}          — optional personalization
+
+After saving, test signup and password reset from your app.

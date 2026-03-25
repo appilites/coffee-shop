@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { CartProvider } from "@/lib/context/cart-context"
+import { AuthProvider } from "@/lib/context/auth-context"
 import { LoyaltyProvider } from "@/lib/context/loyalty-context"
 import { MobileNav } from "@/components/mobile-nav"
 import { Toaster } from "@/components/ui/toaster"
@@ -37,11 +38,13 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`font-sans antialiased`} suppressHydrationWarning>
         <CartProvider>
-          <LoyaltyProvider>
-            {children}
-            <MobileNav />
-            <Toaster />
-          </LoyaltyProvider>
+          <AuthProvider>
+            <LoyaltyProvider>
+              {children}
+              <MobileNav />
+              <Toaster />
+            </LoyaltyProvider>
+          </AuthProvider>
         </CartProvider>
         <Analytics />
       </body>

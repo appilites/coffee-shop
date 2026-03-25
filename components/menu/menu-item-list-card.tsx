@@ -6,7 +6,7 @@ import type { MenuItem } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Sparkles } from "lucide-react"
+import { Plus, Sparkles, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
 
@@ -79,14 +79,19 @@ export default function MenuItemListCard({ item, onCustomize, categoryName }: Me
             <span className="font-serif text-sm sm:text-base md:text-lg font-bold text-brand">${item.base_price.toFixed(2)}</span>
             <Button
               size="sm"
+              disabled={isAdding}
               onClick={(e) => {
                 e.stopPropagation()
                 onCustomize()
               }}
-              className="h-6 w-6 sm:h-7 sm:w-auto sm:px-2.5 md:px-3 bg-brand text-[10px] sm:text-xs md:text-sm font-medium text-white hover:bg-brand-dark transition-all hover:shadow-md shrink-0"
+              className="h-6 w-6 sm:h-7 sm:w-auto sm:px-2.5 md:px-3 bg-brand text-[10px] sm:text-xs md:text-sm font-medium text-white hover:bg-brand-dark transition-all hover:shadow-md shrink-0 disabled:opacity-80"
             >
-              <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
-              <span className="hidden sm:inline">Add</span>
+              {isAdding ? (
+                <Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5 animate-spin shrink-0" />
+              ) : (
+                <Plus className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+              )}
+              <span className="hidden sm:inline">{isAdding ? "…" : "Add"}</span>
             </Button>
           </div>
         </div>

@@ -135,7 +135,7 @@ export interface LoyaltyPointsTransaction {
   user_id: string
   order_id: string | null
   points: number
-  transaction_type: "earned" | "redeemed" | "expired" | "bonus"
+  transaction_type: "earned" | "redeemed" | "expired" | "bonus" | "adjustment"
   description: string | null
   reward_id: string | null
   created_at: string

@@ -20,7 +20,7 @@ function OrderStatusContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const orderId = searchParams.get("orderId")
-  const { awardPoints, refreshPoints } = useLoyalty()
+  const { awardPoints, refreshPoints, isLoyaltyActive, isLoading: loyaltyLoading } = useLoyalty()
 
   const [order, setOrder] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
@@ -173,6 +173,15 @@ function OrderStatusContent() {
           </Button>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Order Status</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Order #{order.id.substring(6, 14)}</p>
+          {!loyaltyLoading && !isLoyaltyActive ? (
+            <p className="text-xs text-muted-foreground mt-2 rounded-md border border-border/60 bg-muted/20 px-2 py-1.5">
+              Loyalty points are credited when you&apos;re signed in.{" "}
+              <Link href="/login?redirect=/order-status" className="text-primary font-medium underline-offset-2 hover:underline">
+                Sign in
+              </Link>{" "}
+              on your next order to earn points.
+            </p>
+          ) : null}
         </div>
 
         {/* Status Banner */}

@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/server"
-
-const SETUP_SQL = `ALTER TABLE menu_items
-  ADD COLUMN IF NOT EXISTS loyalty_points_earn INTEGER DEFAULT 0 NOT NULL;
-ALTER TABLE menu_items
-  ADD COLUMN IF NOT EXISTS loyalty_points_cost INTEGER DEFAULT 0 NOT NULL;`
+import { MENU_ITEMS_LOYALTY_COLUMNS_SQL as SETUP_SQL } from "@/lib/sql/menu-items-loyalty-columns"
 
 function normalizeCategory(cat: unknown): { id: string; name: string } | null {
   if (!cat) return null

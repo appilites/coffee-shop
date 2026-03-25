@@ -20,7 +20,14 @@ export function MobileNav() {
   ]
 
   // Don't show nav on certain pages
-  if (pathname?.includes("/admin") || pathname?.includes("/payment") || pathname?.includes("/order-status")) {
+  if (
+    pathname?.includes("/admin") ||
+    pathname?.includes("/payment") ||
+    pathname?.includes("/order-status") ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname?.startsWith("/auth/")
+  ) {
     return null
   }
 

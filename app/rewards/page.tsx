@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useLoyalty } from "@/lib/context/loyalty-context"
+import { useAuth } from "@/lib/context/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,12 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Loader2, Gift, Star, History, CheckCircle2, XCircle, Sparkles } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import { toast } from "@/hooks/use-toast"
 import { getProductImage } from "@/lib/product-images"
 import { loyaltyCopy } from "@/lib/loyalty-copy"
 
 export default function RewardsPage() {
   const router = useRouter()
+  const { signOut } = useAuth()
   const {
     pointsBalance,
     programRewards,
@@ -84,14 +87,30 @@ export default function RewardsPage() {
               Druids Nutrition
             </span>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push("/menu")}
-            className="text-[10px] sm:text-xs md:text-sm h-7 sm:h-8 md:h-9"
-          >
-            Back to Menu
-          </Button>
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <Button size="sm" variant="ghost" asChild className="text-[10px] sm:text-xs h-7 sm:h-8 px-2">
+              <Link href="/auth/change-password">Password</Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-[10px] sm:text-xs h-7 sm:h-8 px-2"
+              onClick={async () => {
+                await signOut()
+                router.push("/menu")
+              }}
+            >
+              Sign out
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/menu")}
+              className="text-[10px] sm:text-xs md:text-sm h-7 sm:h-8 md:h-9"
+            >
+              Menu
+            </Button>
+          </div>
         </div>
       </header>
 

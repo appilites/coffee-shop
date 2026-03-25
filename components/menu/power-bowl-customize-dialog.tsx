@@ -4,9 +4,8 @@ import { useState, useEffect } from "react"
 import type { MenuItem } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
-import { useRouter } from "next/navigation"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 
 interface PowerBowlCustomizeDialogProps {
@@ -52,10 +51,12 @@ const BOOSTA_OPTIONS = [
   { id: "peanut-butter", name: "Peanut Butter", priceModifier: 0.5 },
 ]
 
+const ADD_TO_CART_FEEDBACK_MS = 450
+
 export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerBowlCustomizeDialogProps) {
-  const router = useRouter()
   const { addItem } = useCart()
   const [currentStep, setCurrentStep] = useState(1)
+  const [addingToCart, setAddingToCart] = useState(false)
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("right")
   
   // Selections
@@ -73,6 +74,7 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       setSelectedFruits([])
       setSelectedBoostas([])
       setSlideDirection("right")
+      setAddingToCart(false)
     }
   }, [open])
 
@@ -147,7 +149,10 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
     }
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    if (addingToCart) return
+    setAddingToCart(true)
+    try {
     const customizations = [
       {
         optionId: "base",
@@ -201,8 +206,11 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       totalPrice: calculateTotalPrice(),
     })
 
-    onClose()
-    router.push("/cart")
+      await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
+      onClose()
+    } finally {
+      setAddingToCart(false)
+    }
   }
 
   const getStepTitle = () => {
@@ -441,11 +449,16 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
               </Button>
             ) : (
               <Button
-                onClick={handleAddToCart}
+                onClick={() => void handleAddToCart()}
+                disabled={addingToCart}
                 size="lg"
                 className="flex-1 gradient-copper-gold text-white hover:opacity-90 h-11 sm:h-12"
               >
-                <span className="text-sm sm:text-base">Add to Cart - ${calculateTotalPrice().toFixed(2)}</span>
+                {addingToCart ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <span className="text-sm sm:text-base">Add to Cart - ${calculateTotalPrice().toFixed(2)}</span>
+                )}
               </Button>
             )}
           </div>

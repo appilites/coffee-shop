@@ -6,7 +6,7 @@ import type { MenuItem } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Sparkles } from "lucide-react"
+import { Plus, Sparkles, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
 
@@ -14,9 +14,10 @@ interface MenuItemCardProps {
   item: MenuItem
   onCustomize: () => void
   categoryName?: string
+  isAdding?: boolean
 }
 
-export default function MenuItemCard({ item, onCustomize, categoryName }: MenuItemCardProps) {
+export default function MenuItemCard({ item, onCustomize, categoryName, isAdding = false }: MenuItemCardProps) {
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
   
@@ -87,14 +88,19 @@ export default function MenuItemCard({ item, onCustomize, categoryName }: MenuIt
           <span className="font-serif text-sm sm:text-base md:text-lg font-bold text-brand">${item.base_price.toFixed(2)}</span>
           <Button
             size="sm"
+            disabled={isAdding}
             onClick={(e) => {
               e.stopPropagation()
               onCustomize()
             }}
-            className="h-7 w-7 sm:h-8 sm:w-auto sm:px-3 md:px-4 bg-brand text-[10px] sm:text-xs md:text-sm font-medium text-white hover:bg-brand-dark transition-all hover:shadow-md"
+            className="h-7 w-7 sm:h-8 sm:w-auto sm:px-3 md:px-4 bg-brand text-[10px] sm:text-xs md:text-sm font-medium text-white hover:bg-brand-dark transition-all hover:shadow-md disabled:opacity-80"
           >
-            <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
-            <span className="hidden sm:inline">Add</span>
+            {isAdding ? (
+              <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 animate-spin shrink-0" />
+            ) : (
+              <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+            )}
+            <span className="hidden sm:inline">{isAdding ? "…" : "Add"}</span>
           </Button>
         </div>
       </div>

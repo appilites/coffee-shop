@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react"
+import { ChevronLeft, ChevronRight, Minus, Plus, Loader2 } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
-import { useRouter } from "next/navigation"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 import { comboService } from "@/lib/supabase/database"
 import { productVariationsToCustomizations } from "@/lib/product-variations"
@@ -23,9 +22,11 @@ interface CustomizeDialogProps {
   onClose: () => void
 }
 
+const ADD_TO_CART_FEEDBACK_MS = 450
+
 export default function CustomizeDialog({ item, customizations: propCustomizations, categoryName, menuItems = [], open, onClose }: CustomizeDialogProps) {
-  const router = useRouter()
   const { addItem } = useCart()
+  const [addingToCart, setAddingToCart] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("right")
   const [quantity, setQuantity] = useState(1)
@@ -74,6 +75,7 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
       setSelectedOptions(new Map())
       setSelectedCombos(new Set())
       setSlideDirection("right")
+      setAddingToCart(false)
     }
   }, [open, item.id])
 
@@ -198,7 +200,10 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
     return price * quantity
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    if (addingToCart) return
+    setAddingToCart(true)
+    try {
     const customizationData = Array.from(selectedOptions.entries())
       .map(([optionId, choiceIds]) => {
         const option = customizations.find((c) => c.id === optionId)
@@ -261,8 +266,11 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
       }
     })
 
-    onClose()
-    router.push("/cart")
+      await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
+      onClose()
+    } finally {
+      setAddingToCart(false)
+    }
   }
 
   const getStepTitle = () => {
@@ -531,22 +539,33 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
           </div>
           <div className="flex-1 flex flex-col items-center justify-center py-8 px-4 sm:px-6">
             <p className="text-sm text-muted-foreground mb-4">No variations available for this product.</p>
-            <Button 
-              onClick={() => {
-                addItem({
-                  id: `${item.id}-${Date.now()}`,
-                  menuItem: item,
-                  quantity: 1,
-                  selectedCustomizations: [],
-                  totalPrice: item.base_price || 0,
-                })
-                onClose()
-                router.push("/cart")
-              }} 
+            <Button
+              disabled={addingToCart}
+              onClick={async () => {
+                if (addingToCart) return
+                setAddingToCart(true)
+                try {
+                  addItem({
+                    id: `${item.id}-${Date.now()}`,
+                    menuItem: item,
+                    quantity: 1,
+                    selectedCustomizations: [],
+                    totalPrice: item.base_price || 0,
+                  })
+                  await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
+                  onClose()
+                } finally {
+                  setAddingToCart(false)
+                }
+              }}
               className="w-full gradient-copper-gold text-white hover:opacity-90"
               size="lg"
             >
-              Add to Cart - ${(item.base_price || 0).toFixed(2)}
+              {addingToCart ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                `Add to Cart - $${(item.base_price || 0).toFixed(2)}`
+              )}
             </Button>
           </div>
         </DialogContent>
@@ -644,12 +663,16 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
               </Button>
             ) : (
           <Button
-            onClick={handleAddToCart}
-                disabled={!canProceed()}
+            onClick={() => void handleAddToCart()}
+                disabled={!canProceed() || addingToCart}
             size="lg"
                 className="flex-1 gradient-copper-gold text-white hover:opacity-90 h-11 sm:h-12"
           >
-                <span className="text-sm sm:text-base">Add to Cart - ${calculateTotalPrice().toFixed(2)}</span>
+                {addingToCart ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <span className="text-sm sm:text-base">Add to Cart - ${calculateTotalPrice().toFixed(2)}</span>
+                )}
           </Button>
             )}
           </div>

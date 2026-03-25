@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/server"
-
-const SQL = `ALTER TABLE menu_items
-  ADD COLUMN IF NOT EXISTS loyalty_points_earn INTEGER DEFAULT 0 NOT NULL;
-ALTER TABLE menu_items
-  ADD COLUMN IF NOT EXISTS loyalty_points_cost INTEGER DEFAULT 0 NOT NULL;`
+import { MENU_ITEMS_LOYALTY_COLUMNS_SQL as SQL } from "@/lib/sql/menu-items-loyalty-columns"
 
 export async function GET() {
   try {

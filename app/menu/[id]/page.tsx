@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Plus, Sparkles, Clock, Minus, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Plus, Sparkles, Clock, Minus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
 import { useState, useEffect, useMemo } from "react"
@@ -39,6 +39,8 @@ const FALLBACK_FRUIT_OPTIONS = [
   { id: "pineapple", name: "Pineapple", priceModifier: 0 },
   { id: "strawberry", name: "Strawberry", priceModifier: 0 },
 ]
+
+const ADD_TO_CART_FEEDBACK_MS = 450
 
 const FALLBACK_BOOSTA_OPTIONS = [
   { id: "almond", name: "Almond", priceModifier: 0.5 },
@@ -75,6 +77,7 @@ export default function ProductDetailPage() {
   const [selectedGranola, setSelectedGranola] = useState<string>("")
   const [selectedFruits, setSelectedFruits] = useState<string[]>([])
   const [selectedBoostas, setSelectedBoostas] = useState<string[]>([])
+  const [addingToCart, setAddingToCart] = useState(false)
 
   // Get Power Bowl customizations from database (converted to step format)
   const powerBowlSteps = useMemo(() => {
@@ -363,9 +366,10 @@ export default function ProductDetailPage() {
   }
 
   // Handle add to cart directly (no dialog)
-  const handleAddToCart = () => {
-    if (!product) return
-
+  const handleAddToCart = async () => {
+    if (!product || addingToCart) return
+    setAddingToCart(true)
+    try {
     if (isPowerBowl) {
       let customizationData: Array<{ optionId: string; optionName: string; choices: Array<{ id: string; name: string; priceModifier: number }> }>
 
@@ -476,7 +480,10 @@ export default function ProductDetailPage() {
       })
     }
 
-    router.push("/cart")
+      await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
+    } finally {
+      setAddingToCart(false)
+    }
   }
 
   // Loading state
@@ -861,12 +868,16 @@ export default function ProductDetailPage() {
                     </Button>
                   ) : (
                     <Button
-                      onClick={handleAddToCart}
-                      disabled={!canProceedPowerBowl()}
+                      onClick={() => void handleAddToCart()}
+                      disabled={!canProceedPowerBowl() || addingToCart}
                       className="flex-1 bg-brand text-white hover:bg-brand-dark"
                       size="lg"
                     >
-                      Add to Cart - ${calculatePowerBowlPrice().toFixed(2)}
+                      {addingToCart ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        `Add to Cart - $${calculatePowerBowlPrice().toFixed(2)}`
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1004,13 +1015,19 @@ export default function ProductDetailPage() {
 
                 {/* Add to Cart Button - Direct (No Dialog) */}
                 <Button
-                  onClick={handleAddToCart}
-                  disabled={!canAddToCart}
+                  onClick={() => void handleAddToCart()}
+                  disabled={!canAddToCart || addingToCart}
                   size="lg"
                   className="w-full bg-brand text-white hover:bg-brand-dark min-h-[48px] sm:min-h-[52px] md:min-h-[56px] text-sm sm:text-base md:text-lg font-semibold"
                 >
-                  <Plus className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  Add to Cart
+                  {addingToCart ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                      Add to Cart
+                    </>
+                  )}
                 </Button>
               </>
             )}

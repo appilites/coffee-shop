@@ -8,10 +8,24 @@ import { loyaltyCopy } from "@/lib/loyalty-copy"
 
 export function LoyaltyPointsDisplay() {
   const router = useRouter()
-  const { pointsBalance, isLoading } = useLoyalty()
+  const { pointsBalance, isLoading, isLoyaltyActive } = useLoyalty()
 
   if (isLoading) {
     return null
+  }
+
+  if (!isLoyaltyActive) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        title="Sign in to earn and track loyalty points"
+        onClick={() => router.push("/login?redirect=/rewards")}
+        className="h-auto min-h-7 sm:min-h-8 py-0.5 px-2 sm:px-2.5 md:px-3 text-[10px] sm:text-xs"
+      >
+        Log in · Rewards
+      </Button>
+    )
   }
 
   const pts = pointsBalance?.current_points ?? 0

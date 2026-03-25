@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -56,8 +56,9 @@ interface MenuContentProps {
   onRefresh?: () => void
 }
 
+const ADD_TO_CART_FEEDBACK_MS = 450
+
 export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { getItemCount, getTotal, addItem } = useCart()
   const categoryFromUrl = searchParams?.get("category")
@@ -108,6 +109,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
   const [expandedParentCategory, setExpandedParentCategory] = useState<string | null>(null)
   const [hoveredParentCategory, setHoveredParentCategory] = useState<string | null>(null)
   const [isCartMenuOpen, setIsCartMenuOpen] = useState(false)
+  const [addingItemId, setAddingItemId] = useState<string | null>(null)
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
 
@@ -197,16 +199,20 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
       // Open Power Bowl multi-step customization dialog
       setPowerBowlItem(item)
     } else if (isLoadedTeaItem(item)) {
-      // Directly add to cart without customization for Loaded Tea items
-      const cartItem = {
-        id: `${item.id}-${Date.now()}`,
-        menuItem: item,
-        quantity: 1,
-        selectedCustomizations: [],
-        totalPrice: item.base_price || 0,
+      setAddingItemId(item.id)
+      try {
+        const cartItem = {
+          id: `${item.id}-${Date.now()}`,
+          menuItem: item,
+          quantity: 1,
+          selectedCustomizations: [],
+          totalPrice: item.base_price || 0,
+        }
+        addItem(cartItem)
+        await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
+      } finally {
+        setAddingItemId(null)
       }
-      addItem(cartItem)
-      router.push("/cart")
     } else {
       // ALWAYS open customize dialog (pehle wala behavior restore)
       // Dialog will show ONLY database variations (no auto-generated ones)
@@ -1264,6 +1270,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                                   key={item.id}
                                   item={item}
                                   categoryName={categoryName}
+                                  isAdding={addingItemId === item.id}
                                   onCustomize={() => handleAddToCart(item)}
                                 />
                               ))}
@@ -1275,6 +1282,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                                   key={item.id}
                                   item={item}
                                   categoryName={categoryName}
+                                  isAdding={addingItemId === item.id}
                                   onCustomize={() => handleAddToCart(item)}
                                 />
                               ))}
@@ -1301,6 +1309,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                           key={item.id}
                           item={item}
                           categoryName={category?.name}
+                          isAdding={addingItemId === item.id}
                           onCustomize={() => handleAddToCart(item)}
                         />
                       )
@@ -1315,6 +1324,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                           key={item.id}
                           item={item}
                           categoryName={category?.name}
+                          isAdding={addingItemId === item.id}
                           onCustomize={() => handleAddToCart(item)}
                         />
                       )
