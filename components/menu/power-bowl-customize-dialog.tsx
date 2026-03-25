@@ -263,7 +263,12 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
               <p className="text-xl sm:text-2xl font-bold text-brand">
                 ${calculateTotalPrice().toFixed(2)}
               </p>
-              <LoyaltyPointsEarnBadge amount={calculateTotalPrice()} size="sm" variant="compact" />
+              <LoyaltyPointsEarnBadge
+                points={item.loyalty_points_earn ?? 0}
+                size="sm"
+                variant="compact"
+                context="product"
+              />
             </div>
           </div>
         </div>

@@ -15,6 +15,8 @@ export interface CartItemData {
     choices: Array<{ id: string; name: string; priceModifier: number }>
   }>
   totalPrice: number
+  /** Added at $0 after loyalty redemption */
+  isLoyaltyRedemption?: boolean
 }
 
 interface CartContextType {

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, User, Mail, Phone, Clock, ShoppingBag, MapPin } from "lucide-react"
 import Link from "next/link"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
+import { sumCartLoyaltyPointsEarn } from "@/lib/loyalty-utils"
 
 export default function CheckoutPage() {
   const router = useRouter()
@@ -25,6 +26,7 @@ export default function CheckoutPage() {
   const subtotal = getTotal()
   const tax = subtotal * 0.0875
   const total = subtotal + tax
+  const loyaltyPointsThisOrder = sumCartLoyaltyPointsEarn(items)
 
   useEffect(() => {
     if (items.length === 0) {
@@ -45,9 +47,11 @@ export default function CheckoutPage() {
       id: orderId,
       items: items.map((item) => ({
         id: item.id,
+        menu_item_id: item.menuItem.id,
         name: item.menuItem.name,
         quantity: item.quantity,
         price: item.totalPrice,
+        is_loyalty_redemption: Boolean(item.isLoyaltyRedemption),
         customizations: item.selectedCustomizations,
       })),
       order_type: "drive-through",
@@ -171,7 +175,7 @@ export default function CheckoutPage() {
                       <span className="text-base sm:text-lg font-bold text-brand">${total.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-center pt-3">
-                      <LoyaltyPointsEarnBadge amount={total} size="sm" variant="full" />
+                      <LoyaltyPointsEarnBadge points={loyaltyPointsThisOrder} size="sm" variant="full" context="order" />
                     </div>
                   </div>
               </div>
@@ -445,7 +449,7 @@ export default function CheckoutPage() {
                       <span className="text-lg sm:text-xl font-bold text-brand">${total.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-center pt-4">
-                      <LoyaltyPointsEarnBadge amount={total} size="md" variant="full" />
+                      <LoyaltyPointsEarnBadge points={loyaltyPointsThisOrder} size="md" variant="full" context="order" />
                     </div>
                   </div>
                 </div>

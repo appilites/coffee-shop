@@ -29,6 +29,38 @@ if (typeof window !== 'undefined') {
   }
 }
 
+/** Supabase/Postgrest errors often omit .message; String(error) is "[object Object]" — extract reliably */
+function textFromSupabaseError(error: unknown): string {
+  if (error == null) return ""
+  if (typeof error === "string") return error
+  if (error instanceof Error) return `${error.name} ${error.message}`
+  if (typeof error === "object") {
+    const o = error as Record<string, unknown>
+    const parts = [o.message, o.details, o.hint, o.code].filter((x) => typeof x === "string") as string[]
+    if (parts.length) return parts.join(" ")
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return String(error)
+    }
+  }
+  return String(error)
+}
+
+function isAbortLikeSupabaseError(error: unknown): boolean {
+  const t = textFromSupabaseError(error).toLowerCase()
+  return (
+    t.includes("aborterror") ||
+    t.includes("signal is aborted") ||
+    t.includes("the user aborted") ||
+    t.includes("operation was aborted") ||
+    (t.includes("abort") && t.includes("signal"))
+  )
+}
+
+let inflightCategoriesGetAll: Promise<MenuCategory[]> | null = null
+let inflightMenuItemsGetAll: Promise<MenuItem[]> | null = null
+
 // Categories
 export const categoryService = {
   async getAll(): Promise<MenuCategory[]> {
@@ -37,38 +69,48 @@ export const categoryService = {
       return mockCategories
     }
 
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
-      
-      const { data, error } = await supabase
-        .from('menu_categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order')
-        .abortSignal(controller.signal)
-      
-      clearTimeout(timeoutId)
-      
-      if (error) {
-        console.error('❌ Error fetching categories:', error.message || error)
+    if (inflightCategoriesGetAll) return inflightCategoriesGetAll
+
+    inflightCategoriesGetAll = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('menu_categories')
+          .select('*')
+          .eq('is_active', true)
+          .order('display_order')
+
+        if (error) {
+          if (isAbortLikeSupabaseError(error)) {
+            console.warn('📂 Categories fetch aborted (ignored); using mock categories')
+            return mockCategories
+          }
+          const msg = textFromSupabaseError(error)
+          console.error('❌ Error fetching categories:', msg)
+          console.log('📂 Falling back to mock categories')
+          return mockCategories
+        }
+
+        console.log('✅ Fetched', data?.length || 0, 'categories from database')
+        return data || mockCategories
+      } catch (error: unknown) {
+        if (isAbortLikeSupabaseError(error)) {
+          console.warn('📂 Categories request aborted; using mock categories')
+          return mockCategories
+        }
+        const err = error as { message?: string }
+        if (err?.message?.includes('Failed to fetch')) {
+          console.error('❌ Network error fetching categories')
+        } else {
+          console.error('❌ Exception fetching categories:', textFromSupabaseError(error))
+        }
         console.log('📂 Falling back to mock categories')
         return mockCategories
+      } finally {
+        inflightCategoriesGetAll = null
       }
-      
-      console.log('✅ Fetched', data?.length || 0, 'categories from database')
-      return data || mockCategories
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
-        console.error('❌ Categories request timed out (8s)')
-      } else if (error?.message?.includes('Failed to fetch')) {
-        console.error('❌ Network error fetching categories')
-      } else {
-        console.error('❌ Exception fetching categories:', error?.message || error)
-      }
-      console.log('📂 Falling back to mock categories')
-      return mockCategories
-    }
+    })()
+
+    return inflightCategoriesGetAll
   },
 
   async getParentCategories(): Promise<MenuCategory[]> {
@@ -166,57 +208,69 @@ export const menuItemService = {
       return mockMenuItems
     }
 
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
-      
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .abortSignal(controller.signal)
-      
-      clearTimeout(timeoutId)
-      
-      if (error) {
-        console.error('❌ Error fetching menu items:', error.message || error)
+    if (inflightMenuItemsGetAll) return inflightMenuItemsGetAll
+
+    inflightMenuItemsGetAll = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('menu_items')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          if (isAbortLikeSupabaseError(error)) {
+            console.warn('📦 Menu items fetch aborted (ignored); using mock data')
+            return mockMenuItems
+          }
+          const msg = textFromSupabaseError(error)
+          console.error('❌ Error fetching menu items:', msg)
+          console.log('📦 Falling back to mock menu items')
+          return mockMenuItems
+        }
+
+        if (!data || data.length === 0) {
+          console.warn('⚠️ No products found in database, using mock data')
+          return mockMenuItems
+        }
+
+        const transformedData = (data || []).map((item: any) => ({
+          id: item.id,
+          category_id: item.category_id,
+          name: item.name,
+          description: item.description,
+          base_price: item.base_price,
+          image_url: item.image_url || `/coffee-drink.png`,
+          is_available: item.is_available,
+          is_featured: item.is_featured,
+          prep_time_minutes: item.prep_time_minutes || 5,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          loyalty_points_earn: item.loyalty_points_earn != null ? Number(item.loyalty_points_earn) : undefined,
+          loyalty_points_cost: item.loyalty_points_cost != null ? Number(item.loyalty_points_cost) : undefined,
+          variations: Array.isArray(item.variations) ? item.variations : undefined
+        }))
+
+        console.log('✅ Fetched', transformedData.length, 'menu items from database')
+        return transformedData
+      } catch (error: unknown) {
+        if (isAbortLikeSupabaseError(error)) {
+          console.warn('📦 Menu items request aborted; using mock data')
+          return mockMenuItems
+        }
+        const err = error as { message?: string }
+        if (err?.message?.includes('Failed to fetch')) {
+          console.error('❌ Network error - check internet or Supabase status')
+        } else {
+          console.error('❌ Exception fetching menu items:', textFromSupabaseError(error))
+        }
         console.log('📦 Falling back to mock menu items')
         return mockMenuItems
+      } finally {
+        inflightMenuItemsGetAll = null
       }
-      
-      if (!data || data.length === 0) {
-        console.warn('⚠️ No products found in database, using mock data')
-        return mockMenuItems
-      }
-      
-      const transformedData = (data || []).map((item: any) => ({
-        id: item.id,
-        category_id: item.category_id,
-        name: item.name,
-        description: item.description,
-        base_price: item.base_price,
-        image_url: item.image_url || `/coffee-drink.png`,
-        is_available: item.is_available,
-        is_featured: item.is_featured,
-        prep_time_minutes: item.prep_time_minutes || 5,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        variations: Array.isArray(item.variations) ? item.variations : undefined
-      }))
-      
-      console.log('✅ Fetched', transformedData.length, 'menu items from database')
-      return transformedData
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
-        console.error('❌ Supabase request timed out (8s)')
-      } else if (error?.message?.includes('Failed to fetch')) {
-        console.error('❌ Network error - check internet or Supabase status')
-      } else {
-        console.error('❌ Exception fetching menu items:', error?.message || error)
-      }
-      console.log('📦 Falling back to mock menu items')
-      return mockMenuItems
-    }
+    })()
+
+    return inflightMenuItemsGetAll
   },
 
   async getByCategory(categoryId: string): Promise<MenuItem[]> {

@@ -66,23 +66,23 @@ function PaymentContent() {
         localStorage.setItem("all-orders", JSON.stringify(orders))
       }
 
-      // Award loyalty points
       try {
-        const { useLoyalty } = await import("@/lib/context/loyalty-context")
-        // Note: We can't use hooks here, so we'll award points via localStorage directly
-        // Points will be awarded when the order status page loads
-        const pointsEarned = Math.floor(orderData.total_amount || 0)
-        if (pointsEarned > 0) {
-          // Store pending points to be awarded
-          localStorage.setItem("pending_loyalty_points", JSON.stringify({
-            points: pointsEarned,
-            description: `Earned ${pointsEarned} points from order`,
-            orderId: orderId,
+        const lineItems = (orderData.items || [])
+          .filter((i: { menu_item_id?: string; is_loyalty_redemption?: boolean }) => i.menu_item_id && !i.is_loyalty_redemption)
+          .map((i: { menu_item_id: string; quantity: number }) => ({
+            menu_item_id: i.menu_item_id,
+            quantity: i.quantity,
           }))
-        }
+        localStorage.setItem(
+          "pending_loyalty_points",
+          JSON.stringify({
+            orderId,
+            lineItems,
+            total_amount: orderData.total_amount,
+          }),
+        )
       } catch (pointsError) {
         console.error("Error preparing loyalty points:", pointsError)
-        // Don't fail payment if points awarding fails
       }
 
       clearCart()

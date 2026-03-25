@@ -48,20 +48,60 @@ function OrderStatusContent() {
         setOrder(orderData)
         setLoading(false)
 
-        // Award loyalty points if pending
         try {
-          const pendingPoints = localStorage.getItem("pending_loyalty_points")
-          if (pendingPoints) {
-            const { points, description, orderId: pendingOrderId } = JSON.parse(pendingPoints)
-            if (pendingOrderId === orderId) {
-              await awardPoints(points, description, orderId)
+          const pendingRaw = localStorage.getItem("pending_loyalty_points")
+          if (pendingRaw) {
+            const pending = JSON.parse(pendingRaw) as {
+              orderId?: string
+              lineItems?: { menu_item_id: string; quantity: number }[]
+              points?: number
+              description?: string
+              total_amount?: number
+            }
+            if (pending.orderId === orderId) {
+              let points = 0
+              if (pending.lineItems && pending.lineItems.length > 0) {
+                const res = await fetch("/api/loyalty/compute-earn", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ items: pending.lineItems }),
+                })
+                const data = await res.json()
+                points = typeof data.pointsEarned === "number" ? data.pointsEarned : 0
+              }
+              if (points <= 0 && typeof pending.points === "number") {
+                points = pending.points
+              }
+              if (points <= 0 && pending.total_amount != null) {
+                points = Math.floor(Number(pending.total_amount) || 0)
+              }
+              if (points > 0) {
+                await awardPoints(points, `Earned ${points} points from your order`, orderId)
+                setPointsEarned(points)
+              }
               localStorage.removeItem("pending_loyalty_points")
               await refreshPoints()
-              setPointsEarned(points)
             }
           } else {
-            // Calculate points from order total
-            const calculatedPoints = Math.floor(orderData.total_amount)
+            const lineItems = (orderData.items || [])
+              .filter((i: { menu_item_id?: string; is_loyalty_redemption?: boolean }) => i.menu_item_id && !i.is_loyalty_redemption)
+              .map((i: { menu_item_id: string; quantity: number }) => ({
+                menu_item_id: i.menu_item_id,
+                quantity: i.quantity,
+              }))
+            let calculatedPoints = 0
+            if (lineItems.length > 0) {
+              const res = await fetch("/api/loyalty/compute-earn", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ items: lineItems }),
+              })
+              const data = await res.json()
+              calculatedPoints = typeof data.pointsEarned === "number" ? data.pointsEarned : 0
+            }
+            if (calculatedPoints <= 0) {
+              calculatedPoints = Math.floor(orderData.total_amount || 0)
+            }
             if (calculatedPoints > 0) {
               await awardPoints(calculatedPoints, `Earned from order #${orderId}`, orderId)
               setPointsEarned(calculatedPoints)
@@ -173,7 +213,11 @@ function OrderStatusContent() {
                   🎉 Loyalty Points Earned!
                 </h3>
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  You earned <span className="font-bold text-lg">{pointsEarned}</span> {pointsEarned === 1 ? "point" : "points"} with this order
+                  You earned <span className="font-bold text-lg">{pointsEarned}</span> loyalty{" "}
+                  {pointsEarned === 1 ? "point" : "points"} with this order. They are added to your balance for Rewards.
+                </p>
+                <p className="text-xs text-amber-700/85 dark:text-amber-300/90 mt-1.5">
+                  Open Rewards from the menu to redeem points for free items.
                 </p>
               </div>
               <div className="flex flex-col items-center bg-white dark:bg-amber-950 rounded-lg px-4 py-2 shadow-sm">

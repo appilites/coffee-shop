@@ -7,6 +7,7 @@ import { ArrowLeft, Trash2, Minus, Plus, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
+import { sumCartLoyaltyPointsEarn } from "@/lib/loyalty-utils"
 
 export default function CartPage() {
   const router = useRouter()
@@ -15,6 +16,7 @@ export default function CartPage() {
   const subtotal = getTotal()
   const tax = subtotal * 0.0875 // 8.75% tax
   const total = subtotal + tax
+  const loyaltyPointsThisOrder = sumCartLoyaltyPointsEarn(items)
 
   const handlePayNow = () => {
     console.log("[v0] Pay Now clicked, navigating to checkout")
@@ -77,9 +79,16 @@ export default function CartPage() {
               <Card key={item.id} className="p-2.5 sm:p-3 md:p-4">
                 <div className="flex gap-2 sm:gap-2.5 md:gap-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-serif text-sm sm:text-base md:text-lg font-semibold text-foreground truncate">
-                      {item.menuItem.name}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-serif text-sm sm:text-base md:text-lg font-semibold text-foreground truncate">
+                        {item.menuItem.name}
+                      </h3>
+                      {item.isLoyaltyRedemption && (
+                        <span className="text-[10px] sm:text-xs font-medium text-amber-600 dark:text-amber-400 shrink-0">
+                          Loyalty · $0
+                        </span>
+                      )}
+                    </div>
 
                     {item.selectedCustomizations.length > 0 && (
                       <div className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1">
@@ -152,7 +161,7 @@ export default function CartPage() {
                 
                 {/* Loyalty Points Earning Preview */}
                 <div className="flex justify-center pt-2 sm:pt-3">
-                  <LoyaltyPointsEarnBadge amount={total} size="md" variant="full" />
+                  <LoyaltyPointsEarnBadge points={loyaltyPointsThisOrder} size="md" variant="full" context="order" />
                 </div>
 
                 <Button

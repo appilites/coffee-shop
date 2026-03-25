@@ -33,8 +33,25 @@ export interface MenuItem {
   prep_time_minutes: number
   created_at: string
   updated_at: string
+  /** Points earned per unit when purchased (admin / menu_items) */
+  loyalty_points_earn?: number
+  /** Points to redeem this product for free; 0 = not a reward */
+  loyalty_points_cost?: number
   /** Variations from products API (stored on product, not in customization_options) */
   variations?: ProductVariation[]
+}
+
+/** Product configured as a loyalty reward (from GET /api/loyalty) */
+export interface LoyaltyProgramReward {
+  id: string
+  name: string
+  description: string | null
+  base_price: number
+  image_url: string | null
+  loyalty_points_earn: number
+  loyalty_points_cost: number
+  is_available: boolean
+  category: { id: string; name: string } | null
 }
 
 export interface CustomizationOption {
@@ -135,6 +152,9 @@ export interface UserReward {
   used_at: string | null
   created_at: string
   reward?: Reward
+  /** Menu product redemption (shop) */
+  menu_item_id?: string
+  product_name?: string
 }
 
 export interface LoyaltyPointsBalance {

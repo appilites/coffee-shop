@@ -1,196 +1,157 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
-import type { Reward, LoyaltyPointsBalance, LoyaltyPointsTransaction, UserReward } from "@/lib/types"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import type {
+  LoyaltyProgramReward,
+  LoyaltyPointsBalance,
+  LoyaltyPointsTransaction,
+  UserReward,
+  MenuItem,
+} from "@/lib/types"
+import { useCart } from "@/lib/context/cart-context"
 
 interface LoyaltyContextType {
   pointsBalance: LoyaltyPointsBalance | null
-  rewards: Reward[]
+  /** Redeemable products from menu (loyalty_points_cost > 0) */
+  programRewards: LoyaltyProgramReward[]
+  /** Products that earn points on purchase (for display) */
+  productsEarningPoints: LoyaltyProgramReward[]
+  columnsExist: boolean | null
+  setupSql: string | null
   userRewards: UserReward[]
   transactions: LoyaltyPointsTransaction[]
   isLoading: boolean
+  rewardsLoading: boolean
   refreshPoints: () => Promise<void>
   refreshRewards: () => Promise<void>
   refreshUserRewards: () => Promise<void>
   refreshTransactions: () => Promise<void>
   awardPoints: (points: number, description: string, orderId?: string) => Promise<void>
-  redeemReward: (rewardId: string) => Promise<void>
+  redeemReward: (menuItemId: string) => Promise<void>
 }
 
 const LoyaltyContext = createContext<LoyaltyContextType | undefined>(undefined)
 
-// Mock rewards data
-const mockRewards: Reward[] = [
-  {
-    id: "reward-1",
-    name: "Free Coffee",
-    description: "Redeem for any coffee drink",
-    points_required: 100,
-    reward_type: "free_drink",
-    discount_percentage: null,
-    discount_amount: null,
-    is_active: true,
-    image_url: null,
-    display_order: 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "reward-2",
-    name: "Free Tea",
-    description: "Redeem for any tea drink",
-    points_required: 100,
-    reward_type: "free_tea",
-    discount_percentage: null,
-    discount_amount: null,
-    is_active: true,
-    image_url: null,
-    display_order: 2,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "reward-3",
-    name: "Free Protein Drink",
-    description: "Redeem for any protein drink",
-    points_required: 120,
-    reward_type: "free_drink",
-    discount_percentage: null,
-    discount_amount: null,
-    is_active: true,
-    image_url: null,
-    display_order: 3,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "reward-4",
-    name: "10% Off",
-    description: "Get 10% off your next order",
-    points_required: 50,
-    reward_type: "discount",
-    discount_percentage: 10,
-    discount_amount: null,
-    is_active: true,
-    image_url: null,
-    display_order: 4,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "reward-5",
-    name: "20% Off",
-    description: "Get 20% off your next order",
-    points_required: 100,
-    reward_type: "discount",
-    discount_percentage: 20,
-    discount_amount: null,
-    is_active: true,
-    image_url: null,
-    display_order: 5,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "reward-6",
-    name: "Free Drink (Any)",
-    description: "Redeem for any drink of your choice",
-    points_required: 150,
-    reward_type: "free_drink",
-    discount_percentage: null,
-    discount_amount: null,
-    is_active: true,
-    image_url: null,
-    display_order: 6,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-]
+const BALANCE_KEY = "loyalty_points_balance"
+const USER_REWARDS_KEY = "loyalty_user_rewards"
+const TX_KEY = "loyalty_transactions"
+
+function menuItemFromReward(r: LoyaltyProgramReward): MenuItem {
+  const now = new Date().toISOString()
+  return {
+    id: r.id,
+    category_id: r.category?.id ?? null,
+    name: r.name,
+    description: r.description,
+    base_price: 0,
+    image_url: r.image_url,
+    is_available: true,
+    is_featured: false,
+    prep_time_minutes: 5,
+    created_at: now,
+    updated_at: now,
+    loyalty_points_earn: 0,
+    loyalty_points_cost: r.loyalty_points_cost,
+  }
+}
 
 export function LoyaltyProvider({ children }: { children: React.ReactNode }) {
+  const { addItem } = useCart()
   const [pointsBalance, setPointsBalance] = useState<LoyaltyPointsBalance | null>(null)
-  const [rewards] = useState<Reward[]>(mockRewards)
+  const [programRewards, setProgramRewards] = useState<LoyaltyProgramReward[]>([])
+  const [productsEarningPoints, setProductsEarningPoints] = useState<LoyaltyProgramReward[]>([])
+  const [columnsExist, setColumnsExist] = useState<boolean | null>(null)
+  const [setupSql, setSetupSql] = useState<string | null>(null)
   const [userRewards, setUserRewards] = useState<UserReward[]>([])
   const [transactions, setTransactions] = useState<LoyaltyPointsTransaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [rewardsLoading, setRewardsLoading] = useState(true)
 
-  // Load from localStorage on mount
+  const refreshRewards = useCallback(async () => {
+    setRewardsLoading(true)
+    try {
+      const res = await fetch("/api/loyalty", { cache: "no-store" })
+      const data = await res.json()
+      if (!res.ok) {
+        setProgramRewards([])
+        setProductsEarningPoints([])
+        setColumnsExist(false)
+        return
+      }
+      setProgramRewards(Array.isArray(data.rewards) ? data.rewards : [])
+      setProductsEarningPoints(Array.isArray(data.productsEarningPoints) ? data.productsEarningPoints : [])
+      setColumnsExist(data.columnsExist !== false)
+      setSetupSql(typeof data.sql === "string" ? data.sql : null)
+    } catch (e) {
+      console.error("refreshRewards:", e)
+      setProgramRewards([])
+      setProductsEarningPoints([])
+    } finally {
+      setRewardsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    const loadFromStorage = () => {
+    const load = () => {
       try {
-        const storedBalance = localStorage.getItem("loyalty_points_balance")
-        const storedRewards = localStorage.getItem("loyalty_user_rewards")
-        const storedTransactions = localStorage.getItem("loyalty_transactions")
+        const storedBalance = localStorage.getItem(BALANCE_KEY)
+        const storedRewards = localStorage.getItem(USER_REWARDS_KEY)
+        const storedTransactions = localStorage.getItem(TX_KEY)
 
         if (storedBalance) {
           setPointsBalance(JSON.parse(storedBalance))
         } else {
-          // Initialize with 0 points
-          const initialBalance: LoyaltyPointsBalance = {
+          const initial: LoyaltyPointsBalance = {
             current_points: 0,
             total_points_earned: 0,
             total_points_redeemed: 0,
           }
-          setPointsBalance(initialBalance)
-          localStorage.setItem("loyalty_points_balance", JSON.stringify(initialBalance))
+          setPointsBalance(initial)
+          localStorage.setItem(BALANCE_KEY, JSON.stringify(initial))
         }
 
-        if (storedRewards) {
-          setUserRewards(JSON.parse(storedRewards))
-        }
-
-        if (storedTransactions) {
-          setTransactions(JSON.parse(storedTransactions))
-        }
+        if (storedRewards) setUserRewards(JSON.parse(storedRewards))
+        if (storedTransactions) setTransactions(JSON.parse(storedTransactions))
       } catch (error) {
         console.error("Error loading loyalty data:", error)
       } finally {
         setIsLoading(false)
       }
     }
-
-    loadFromStorage()
-  }, [])
+    load()
+    void refreshRewards()
+  }, [refreshRewards])
 
   const refreshPoints = async () => {
     try {
-      const storedBalance = localStorage.getItem("loyalty_points_balance")
-      if (storedBalance) {
-        setPointsBalance(JSON.parse(storedBalance))
-      }
-    } catch (error) {
-      console.error("Error refreshing points:", error)
+      const stored = localStorage.getItem(BALANCE_KEY)
+      if (stored) setPointsBalance(JSON.parse(stored))
+    } catch (e) {
+      console.error("refreshPoints:", e)
     }
-  }
-
-  const refreshRewards = async () => {
-    // Rewards are static, no need to refresh
   }
 
   const refreshUserRewards = async () => {
     try {
-      const storedRewards = localStorage.getItem("loyalty_user_rewards")
-      if (storedRewards) {
-        setUserRewards(JSON.parse(storedRewards))
-      }
-    } catch (error) {
-      console.error("Error refreshing user rewards:", error)
+      const stored = localStorage.getItem(USER_REWARDS_KEY)
+      if (stored) setUserRewards(JSON.parse(stored))
+    } catch (e) {
+      console.error("refreshUserRewards:", e)
     }
   }
 
   const refreshTransactions = async () => {
     try {
-      const storedTransactions = localStorage.getItem("loyalty_transactions")
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions))
-      }
-    } catch (error) {
-      console.error("Error refreshing transactions:", error)
+      const stored = localStorage.getItem(TX_KEY)
+      if (stored) setTransactions(JSON.parse(stored))
+    } catch (e) {
+      console.error("refreshTransactions:", e)
     }
   }
 
   const awardPoints = async (points: number, description: string, orderId?: string) => {
+    if (points <= 0) return
     try {
       const currentBalance = pointsBalance || {
         current_points: 0,
@@ -205,102 +166,118 @@ export function LoyaltyProvider({ children }: { children: React.ReactNode }) {
       }
 
       setPointsBalance(newBalance)
-      localStorage.setItem("loyalty_points_balance", JSON.stringify(newBalance))
+      localStorage.setItem(BALANCE_KEY, JSON.stringify(newBalance))
 
-      // Add transaction
       const newTransaction: LoyaltyPointsTransaction = {
         id: `txn-${Date.now()}`,
-        user_id: "user-mock",
+        user_id: "guest",
         order_id: orderId || null,
-        points: points,
+        points,
         transaction_type: "earned",
-        description: description,
+        description,
         reward_id: null,
         created_at: new Date().toISOString(),
       }
 
-      const updatedTransactions = [newTransaction, ...transactions]
-      setTransactions(updatedTransactions)
-      localStorage.setItem("loyalty_transactions", JSON.stringify(updatedTransactions))
+      setTransactions((prev) => {
+        const next = [newTransaction, ...prev]
+        localStorage.setItem(TX_KEY, JSON.stringify(next))
+        return next
+      })
     } catch (error) {
       console.error("Error awarding points:", error)
     }
   }
 
-  const redeemReward = async (rewardId: string) => {
-    try {
-      const reward = rewards.find((r) => r.id === rewardId)
-      if (!reward) throw new Error("Reward not found")
+  const redeemReward = async (menuItemId: string) => {
+    const reward = programRewards.find((r) => r.id === menuItemId)
+    if (!reward) throw new Error("Reward not found")
 
-      const currentBalance = pointsBalance || {
-        current_points: 0,
-        total_points_earned: 0,
-        total_points_redeemed: 0,
-      }
+    const cost = reward.loyalty_points_cost
+    if (cost <= 0) throw new Error("This product is not a reward")
 
-      if (currentBalance.current_points < reward.points_required) {
-        throw new Error("Insufficient points")
-      }
-
-      const newBalance: LoyaltyPointsBalance = {
-        current_points: currentBalance.current_points - reward.points_required,
-        total_points_earned: currentBalance.total_points_earned,
-        total_points_redeemed: currentBalance.total_points_redeemed + reward.points_required,
-      }
-
-      setPointsBalance(newBalance)
-      localStorage.setItem("loyalty_points_balance", JSON.stringify(newBalance))
-
-      // Add transaction
-      const newTransaction: LoyaltyPointsTransaction = {
-        id: `txn-${Date.now()}`,
-        user_id: "user-mock",
-        order_id: null,
-        points: -reward.points_required,
-        transaction_type: "redeemed",
-        description: `Redeemed ${reward.name} for ${reward.points_required} points`,
-        reward_id: rewardId,
-        created_at: new Date().toISOString(),
-      }
-
-      const updatedTransactions = [newTransaction, ...transactions]
-      setTransactions(updatedTransactions)
-      localStorage.setItem("loyalty_transactions", JSON.stringify(updatedTransactions))
-
-      // Add user reward
-      const expiresAt = new Date()
-      expiresAt.setMonth(expiresAt.getMonth() + 3)
-
-      const newUserReward: UserReward = {
-        id: `user-reward-${Date.now()}`,
-        user_id: "user-mock",
-        reward_id: rewardId,
-        order_id: null,
-        points_spent: reward.points_required,
-        status: "active",
-        expires_at: expiresAt.toISOString(),
-        used_at: null,
-        created_at: new Date().toISOString(),
-        reward: reward,
-      }
-
-      const updatedUserRewards = [newUserReward, ...userRewards]
-      setUserRewards(updatedUserRewards)
-      localStorage.setItem("loyalty_user_rewards", JSON.stringify(updatedUserRewards))
-    } catch (error) {
-      console.error("Error redeeming reward:", error)
-      throw error
+    const currentBalance = pointsBalance || {
+      current_points: 0,
+      total_points_earned: 0,
+      total_points_redeemed: 0,
     }
+
+    if (currentBalance.current_points < cost) {
+      throw new Error("Insufficient points")
+    }
+
+    const newBalance: LoyaltyPointsBalance = {
+      current_points: currentBalance.current_points - cost,
+      total_points_earned: currentBalance.total_points_earned,
+      total_points_redeemed: currentBalance.total_points_redeemed + cost,
+    }
+
+    setPointsBalance(newBalance)
+    localStorage.setItem(BALANCE_KEY, JSON.stringify(newBalance))
+
+    const newTransaction: LoyaltyPointsTransaction = {
+      id: `txn-${Date.now()}`,
+      user_id: "guest",
+      order_id: null,
+      points: -cost,
+      transaction_type: "redeemed",
+      description: `Redeemed ${reward.name} for ${cost} points`,
+      reward_id: menuItemId,
+      created_at: new Date().toISOString(),
+    }
+
+    setTransactions((prev) => {
+      const next = [newTransaction, ...prev]
+      localStorage.setItem(TX_KEY, JSON.stringify(next))
+      return next
+    })
+
+    const expiresAt = new Date()
+    expiresAt.setMonth(expiresAt.getMonth() + 3)
+
+    const newUserReward: UserReward = {
+      id: `user-reward-${Date.now()}`,
+      user_id: "guest",
+      reward_id: menuItemId,
+      menu_item_id: menuItemId,
+      product_name: reward.name,
+      order_id: null,
+      points_spent: cost,
+      status: "active",
+      expires_at: expiresAt.toISOString(),
+      used_at: null,
+      created_at: new Date().toISOString(),
+    }
+
+    setUserRewards((prev) => {
+      const next = [newUserReward, ...prev]
+      localStorage.setItem(USER_REWARDS_KEY, JSON.stringify(next))
+      return next
+    })
+
+    const lineId = `loyalty-${menuItemId}-${Date.now()}`
+    addItem({
+      id: lineId,
+      menuItem: menuItemFromReward(reward),
+      quantity: 1,
+      selectedCustomizations: [],
+      totalPrice: 0,
+      isLoyaltyRedemption: true,
+    })
   }
 
   return (
     <LoyaltyContext.Provider
       value={{
         pointsBalance,
-        rewards,
+        programRewards,
+        productsEarningPoints,
+        columnsExist,
+        setupSql,
         userRewards,
         transactions,
         isLoading,
+        rewardsLoading,
         refreshPoints,
         refreshRewards,
         refreshUserRewards,

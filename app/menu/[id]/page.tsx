@@ -650,6 +650,15 @@ export default function ProductDetailPage() {
               )}
             </div>
 
+            <div className="mb-4 sm:mb-5 flex flex-wrap items-center gap-2">
+              <LoyaltyPointsEarnBadge
+                points={(product.loyalty_points_earn ?? 0) * quantity}
+                size="sm"
+                variant="compact"
+                context="product"
+              />
+            </div>
+
             {/* Power Bowl Step-by-Step Flow */}
             {isPowerBowl ? (
               <div className="mb-4 sm:mb-5 md:mb-6">

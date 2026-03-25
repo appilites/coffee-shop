@@ -654,10 +654,10 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
 
   const getCategoryStyle = (categoryName: string) => {
     const name = categoryName.toLowerCase()
-    if (name.includes("coffee")) return { color: "gradient-copper-gold text-white", icon: "☕" }
-    if (name.includes("tea")) return { color: "gradient-copper-gold text-white", icon: "🍵" }
-    if (name.includes("protein")) return { color: "gradient-copper-gold text-white", icon: "💪" }
-    return { color: "gradient-copper-gold text-white", icon: "🥤" }
+    if (name.includes("coffee")) return { color: "gradient-copper-gold text-white" }
+    if (name.includes("tea")) return { color: "gradient-copper-gold text-white" }
+    if (name.includes("protein")) return { color: "gradient-copper-gold text-white" }
+    return { color: "gradient-copper-gold text-white" }
   }
 
   const resetFilters = () => {
@@ -780,7 +780,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                   selectedCategory === null ? "gradient-copper-gold text-white hover:opacity-90 shadow-md" : "hover:bg-muted"
                 }`}
               >
-                <span className="mr-0.5 text-xs">🌟</span>
                 All Items
               </Button>
               {parentCategories.map((parentCategory) => {
@@ -818,7 +817,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                               : "hover:bg-muted"
                         }`}
                       >
-                        <span className="mr-0.5 text-xs">{style.icon}</span>
                         <span className="truncate">{parentCategory.name}</span>
                       </Button>
                       <DropdownMenu
@@ -886,7 +884,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                             : "hover:bg-muted"
                       }`}
                     >
-                      <span className="mr-0.5 text-xs">{style.icon}</span>
                       {parentCategory.name}
                     </Button>
                   )
@@ -914,7 +911,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                         : "hover:bg-accent hover:text-accent-foreground"
                     }`}
                   >
-                    <span className="mr-0.5 sm:mr-1 text-xs sm:text-sm">🌟</span>
                     All Items
                   </Button>
                 </NavigationMenuItem>
@@ -952,7 +948,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                           }`}
                           onClick={() => handleCategoryClick(parentCategory.id)}
                         >
-                          <span className="mr-0.5 sm:mr-1 text-xs sm:text-sm">{style.icon}</span>
                           {parentCategory.name}
                         </NavigationMenuTrigger>
                         <NavigationMenuContent className="z-[100]">
@@ -1012,7 +1007,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                                 : "hover:bg-accent hover:text-accent-foreground"
                           }`}
                         >
-                          <span className="mr-0.5 sm:mr-1 text-xs sm:text-sm">{style.icon}</span>
                           {parentCategory.name}
                         </Button>
                       </NavigationMenuItem>
@@ -1094,28 +1088,28 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                         <div className="flex items-center justify-between">
                           <Label className="text-sm sm:text-base font-semibold">Sort By</Label>
                         </div>
-                        <RadioGroup value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                          <div className="flex items-center space-x-2 rounded-lg border border-border p-2.5 sm:p-3 hover:bg-muted/50 cursor-pointer">
+                        <RadioGroup value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)} className="!gap-2 sm:!gap-2.5">
+                          <div className="flex items-center gap-3 rounded-lg border-2 border-border bg-card p-3 sm:p-3.5 hover:bg-muted/40 cursor-pointer has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/10">
                             <RadioGroupItem value="featured" id="featured" />
-                            <Label htmlFor="featured" className="flex-1 cursor-pointer text-sm sm:text-base">
+                            <Label htmlFor="featured" className="flex-1 cursor-pointer text-sm sm:text-base font-medium">
                               Featured First
                             </Label>
                           </div>
-                          <div className="flex items-center space-x-2 rounded-lg border border-border p-2.5 sm:p-3 hover:bg-muted/50 cursor-pointer">
+                          <div className="flex items-center gap-3 rounded-lg border-2 border-border bg-card p-3 sm:p-3.5 hover:bg-muted/40 cursor-pointer has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/10">
                             <RadioGroupItem value="name" id="name" />
-                            <Label htmlFor="name" className="flex-1 cursor-pointer text-sm sm:text-base">
+                            <Label htmlFor="name" className="flex-1 cursor-pointer text-sm sm:text-base font-medium">
                               Name (A-Z)
                             </Label>
                           </div>
-                          <div className="flex items-center space-x-2 rounded-lg border border-border p-2.5 sm:p-3 hover:bg-muted/50 cursor-pointer">
+                          <div className="flex items-center gap-3 rounded-lg border-2 border-border bg-card p-3 sm:p-3.5 hover:bg-muted/40 cursor-pointer has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/10">
                             <RadioGroupItem value="price-low" id="price-low" />
-                            <Label htmlFor="price-low" className="flex-1 cursor-pointer text-sm sm:text-base">
+                            <Label htmlFor="price-low" className="flex-1 cursor-pointer text-sm sm:text-base font-medium">
                               Price: Low to High
                             </Label>
                           </div>
-                          <div className="flex items-center space-x-2 rounded-lg border border-border p-2.5 sm:p-3 hover:bg-muted/50 cursor-pointer">
+                          <div className="flex items-center gap-3 rounded-lg border-2 border-border bg-card p-3 sm:p-3.5 hover:bg-muted/40 cursor-pointer has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/10">
                             <RadioGroupItem value="price-high" id="price-high" />
-                            <Label htmlFor="price-high" className="flex-1 cursor-pointer text-sm sm:text-base">
+                            <Label htmlFor="price-high" className="flex-1 cursor-pointer text-sm sm:text-base font-medium">
                               Price: High to Low
                             </Label>
                           </div>
@@ -1158,7 +1152,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
 
                       <div className="space-y-2 sm:space-y-3">
                         <Label className="text-sm sm:text-base font-semibold">Additional Filters</Label>
-                        <div className="flex items-center space-x-2 rounded-lg border border-border p-2.5 sm:p-3 hover:bg-muted/50">
+                        <div className="flex items-center gap-3 rounded-lg border-2 border-border bg-card p-3 sm:p-3.5 hover:bg-muted/40 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/10">
                           <Checkbox
                             id="featured-only"
                             checked={showFeaturedOnly}
@@ -1195,7 +1189,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                 {groupedItems.map((group) => {
                   const categoryId = group.category.id
                   const categoryName = getCategoryDisplayName(categoryId)
-                  const style = getCategoryStyle(group.category.name)
                   const itemCount = group.items.length
                   const isParent = group.isParent
                   const subcategories = getSubcategories(categoryId)
@@ -1245,13 +1238,11 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                         {isParent && getSubcategories(categoryId).length > 0 ? (
                           // Parent category heading with different style (no items count)
                           <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold uppercase tracking-wide flex items-center gap-2 sm:gap-2.5 md:gap-3 border-b-2 border-foreground/30 pb-2 sm:pb-2.5 md:pb-3 text-foreground">
-                            <span className="text-lg sm:text-xl md:text-2xl">{style.icon}</span>
                             <span>{group.category.name}</span>
                           </h2>
                         ) : (
                           // Subcategory or parent without subcategories heading
                           <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-bold flex items-center gap-1.5 sm:gap-2 md:gap-2.5 text-foreground">
-                            <span className="text-base sm:text-lg md:text-xl">{style.icon}</span>
                             <span>{group.category.name}</span>
                             {itemCount > 0 && (
                               <span className="ml-1.5 sm:ml-2 md:ml-2.5 text-xs sm:text-sm md:text-base font-normal text-muted-foreground">
