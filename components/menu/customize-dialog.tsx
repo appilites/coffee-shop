@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, type ReactNode } from "react"
 import type { MenuItem, CustomizationOption, CustomizationChoice, ComboOption } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import { ChevronLeft, ChevronRight, Minus, Plus, Loader2 } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 import { comboService } from "@/lib/supabase/database"
-import { productVariationsToCustomizations } from "@/lib/product-variations"
+import { productVariationsToCustomizations, defaultSelectionsForVariations } from "@/lib/product-variations"
 
 interface CustomizeDialogProps {
   item: MenuItem
@@ -67,17 +67,17 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
     }
   }, [open, item.id])
 
-  // Reset when dialog opens
+  // Reset when dialog opens; auto-select when a variation has only one choice
   useEffect(() => {
     if (open) {
       setCurrentStep(1)
       setQuantity(1)
-      setSelectedOptions(new Map())
+      setSelectedOptions(defaultSelectionsForVariations(item.variations))
       setSelectedCombos(new Set())
       setSlideDirection("right")
       setAddingToCart(false)
     }
-  }, [open, item.id])
+  }, [open, item.id, item.variations])
 
   // Get all steps (customizations + combos + quantity)
   const allSteps = useMemo(() => {
@@ -273,13 +273,18 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
     }
   }
 
-  const getStepTitle = () => {
+  const getStepTitle = (): ReactNode => {
     const currentStepData = allSteps[currentStep - 1]
     if (!currentStepData) return ""
 
     if (currentStepData.type === 'customization') {
       const option = currentStepData.data as CustomizationOption & { choices: CustomizationChoice[] }
-      return option.option_name
+      return (
+        <>
+          {option.option_name}
+          {option.is_required && <span className="text-destructive ml-0.5" aria-hidden> *</span>}
+        </>
+      )
     }
 
     if (currentStepData.type === 'combo') {
@@ -300,9 +305,11 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
     if (currentStepData.type === 'customization') {
       const option = currentStepData.data as CustomizationOption & { choices: CustomizationChoice[] }
       if (option.is_required) {
-        return "Please select an option (required)"
+        return option.option_type === "multiple"
+          ? "Select at least one option"
+          : "Select one option"
       }
-      return "Select your preferences (optional)"
+      return "Optional — skip or choose your preferences"
     }
 
     if (currentStepData.type === 'combo') {

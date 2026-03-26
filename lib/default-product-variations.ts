@@ -24,6 +24,7 @@ function getPowerBowlVariations(productId: string): ProductVariation[] {
     {
       id: s("base", 0),
       type: "radio",
+      required: true,
       title: "Pick your Base",
       options: [
         { id: s("base-acai", 0), label: "Açaí", priceModifier: 0 },
@@ -44,6 +45,7 @@ function getPowerBowlVariations(productId: string): ProductVariation[] {
     {
       id: s("fruits", 0),
       type: "checkbox",
+      required: true,
       title: "Pick 3 Fruits",
       options: [
         { id: s("fruit-banana", 0), label: "Banana", priceModifier: 0 },
@@ -56,6 +58,7 @@ function getPowerBowlVariations(productId: string): ProductVariation[] {
     {
       id: s("boosta", 0),
       type: "checkbox",
+      required: false,
       title: "Agaves Boosta",
       options: [
         { id: s("boosta-almond", 0), label: "Almond", priceModifier: 0.5 },
@@ -80,6 +83,7 @@ function getProteinWaffleVariations(productId: string): ProductVariation[] {
     {
       id: s("topping", 0),
       type: "checkbox",
+      required: false,
       title: "Toppings",
       options: [
         { id: s("top-nutella", 0), label: "Nutella", priceModifier: 0.5 },

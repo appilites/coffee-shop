@@ -15,7 +15,7 @@ export function productVariationsToCustomizations(
     menu_item_id: "", // not needed when from product
     option_name: v.title,
     option_type: v.type === "checkbox" ? "multiple" : "single",
-    is_required: true,
+    is_required: v.required !== false,
     created_at: "",
     choices: (v.options || []).map((opt) => ({
       id: opt.id,
@@ -26,4 +26,19 @@ export function productVariationsToCustomizations(
       created_at: "",
     })),
   }))
+}
+
+/** Pre-select the only choice for each variation step that has exactly one choice (modal UX). */
+export function defaultSelectionsForVariations(
+  variations: ProductVariation[] | undefined
+): Map<string, string[]> {
+  const opts = productVariationsToCustomizations(variations)
+  const m = new Map<string, string[]>()
+  for (const opt of opts) {
+    const choices = (opt.choices || []).filter((c) => c?.id)
+    if (choices.length === 1) {
+      m.set(opt.id, [choices[0].id])
+    }
+  }
+  return m
 }

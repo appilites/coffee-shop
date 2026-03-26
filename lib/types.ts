@@ -14,6 +14,8 @@ export interface ProductVariation {
   id: string
   type: "radio" | "checkbox"
   title: string
+  /** If false, customer may skip this group. Omitted in legacy JSON → treated as required. */
+  required?: boolean
   options: Array<{
     id: string
     label: string

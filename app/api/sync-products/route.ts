@@ -19,6 +19,7 @@ interface ApiProduct {
     id: string
     type: "radio" | "checkbox"
     title: string
+    required?: boolean
     options?: Array<{ id: string; label: string; priceModifier: number }>
   }>
   category?: { id: string; name: string; parent_id?: string | null }

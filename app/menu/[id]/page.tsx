@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ArrowLeft, Plus, Sparkles, Clock, Minus, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, type ReactNode } from "react"
 import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice } from "@/lib/types"
 import { menuItemService, categoryService } from "@/lib/supabase/database"
-import { productVariationsToCustomizations } from "@/lib/product-variations"
+import { productVariationsToCustomizations, defaultSelectionsForVariations } from "@/lib/product-variations"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCart } from "@/lib/context/cart-context"
@@ -87,9 +87,11 @@ export default function ProductDetailPage() {
       stepNumber: index + 1,
       optionId: opt.id,
       title: opt.option_name,
-      subtitle: opt.is_required 
-        ? (opt.option_type === 'multiple' ? 'Select your choices (required)' : 'Select one option (required)')
-        : 'Optional - select your preferences',
+      subtitle: opt.is_required
+        ? opt.option_type === "multiple"
+          ? "Select at least one option"
+          : "Select one option"
+        : "Optional — skip or choose your preferences",
       type: opt.option_type,
       isRequired: opt.is_required,
       choices: opt.choices.map(ch => ({
@@ -126,7 +128,7 @@ export default function ProductDetailPage() {
       const isPowerBowlItem =
         itemName.includes("power bowl") ||
         categoryId === "cat-power-bowl" ||
-        fetchedProduct.description?.toLowerCase().includes("build your own")
+        (fetchedProduct.description?.toLowerCase().includes("build your own") ?? false)
       setIsPowerBowl(isPowerBowlItem)
 
       if (fetchedProduct.category_id) {
@@ -146,8 +148,9 @@ export default function ProductDetailPage() {
         setUseFallbackPowerBowl(false)
       }
 
-      const defaultSelections = new Map<string, string[]>()
+      const defaultSelections = defaultSelectionsForVariations(fetchedProduct.variations)
       validCustomizations.forEach((option) => {
+        if (defaultSelections.has(option.id)) return
         if (option.is_required && option.choices && option.choices.length > 0) {
           const defaultChoice = option.choices.find((ch: any) => ch.is_default) || option.choices[0]
           if (defaultChoice) defaultSelections.set(option.id, [defaultChoice.id])
@@ -333,18 +336,44 @@ export default function ProductDetailPage() {
     return price * quantity
   }
 
-  const getStepTitle = () => {
+  const getStepTitle = (): ReactNode => {
     if (useFallbackPowerBowl) {
-      switch (currentStep) {
-        case 1: return "Pick your Base"
-        case 2: return "Add Granola or Not"
-        case 3: return "Pick 3 Fruits"
-        case 4: return "Agaves Boosta"
-        default: return ""
-      }
+      const title =
+        currentStep === 1
+          ? "Pick your Base"
+          : currentStep === 2
+            ? "Add Granola or Not"
+            : currentStep === 3
+              ? "Pick 3 Fruits"
+              : currentStep === 4
+                ? "Agaves Boosta"
+                : ""
+      const showRequired = currentStep >= 1 && currentStep <= 3
+      return (
+        <>
+          {title}
+          {showRequired && title && (
+            <span className="text-destructive ml-0.5" aria-hidden>
+              {" "}
+              *
+            </span>
+          )}
+        </>
+      )
     }
     const step = powerBowlSteps[currentStep - 1]
-    return step?.title ?? ""
+    if (!step) return ""
+    return (
+      <>
+        {step.title}
+        {step.isRequired && (
+          <span className="text-destructive ml-0.5" aria-hidden>
+            {" "}
+            *
+          </span>
+        )}
+      </>
+    )
   }
 
   const getStepSubtitle = () => {
@@ -894,10 +923,15 @@ export default function ProductDetailPage() {
                       const selected = selectedOptions.get(option.id) || []
                       return (
                         <div key={option.id} className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-muted/30 rounded-lg border border-border">
-                          <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
-                            {option.option_name}
-                            {option.is_required && <span className="text-error text-xs">*</span>}
-                          </Label>
+                          <div>
+                            <Label className="text-sm sm:text-base font-semibold flex items-center gap-2">
+                              {option.option_name}
+                              {option.is_required && <span className="text-error text-xs">*</span>}
+                            </Label>
+                            {!option.is_required && (
+                              <p className="text-xs text-muted-foreground mt-1">Optional</p>
+                            )}
+                          </div>
 
                           {option.option_type === "single" ? (
                             <RadioGroup
