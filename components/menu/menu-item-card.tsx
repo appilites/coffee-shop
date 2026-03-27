@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Sparkles, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
+import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 
 interface MenuItemCardProps {
   item: MenuItem
@@ -71,6 +72,17 @@ export default function MenuItemCard({ item, onCustomize, categoryName, isAdding
             <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             Popular
           </Badge>
+        )}
+        {(item.loyalty_points_earn ?? 0) > 0 && (
+          <div className="absolute left-1 bottom-1 sm:left-1.5 sm:bottom-1.5 md:left-2 md:bottom-2 z-10 max-w-[calc(100%-0.5rem)]">
+            <LoyaltyPointsEarnBadge
+              points={item.loyalty_points_earn}
+              size="sm"
+              variant="compact"
+              context="product"
+              subtext=""
+            />
+          </div>
         )}
       </div>
 

@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ShoppingCart, Minus, Plus, Trash2, ArrowRight } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
+import { pointsEarnedForCartLine } from "@/lib/loyalty-utils"
 
 interface CartSlideMenuProps {
   children: React.ReactNode
@@ -37,6 +38,7 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
   const total = subtotal + tax
 
   const handleViewCart = () => {
+    setOpen(false)
     router.push("/cart")
   }
 
@@ -81,13 +83,22 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
               </div>
             ) : (
               <div className="space-y-2 sm:space-y-3 pb-4">
-                {items.map((item) => (
+                {items.map((item) => {
+                  const linePoints = pointsEarnedForCartLine(item)
+                  return (
                   <Card key={item.id} className="p-2.5 sm:p-3 md:p-4">
                     <div className="flex gap-2 sm:gap-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-serif text-xs sm:text-sm md:text-base font-semibold text-foreground truncate">
-                          {item.menuItem.name}
-                        </h3>
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
+                          <h3 className="font-serif text-xs sm:text-sm md:text-base font-semibold text-foreground truncate min-w-0">
+                            {item.menuItem.name}
+                          </h3>
+                          {linePoints > 0 && (
+                            <span className="text-[10px] sm:text-xs font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap shrink-0">
+                              +{linePoints} points
+                            </span>
+                          )}
+                        </div>
 
                         {item.selectedCustomizations.length > 0 && (
                           <div className="mt-1 sm:mt-1.5 space-y-0.5">
@@ -137,7 +148,8 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
                       </div>
                     </div>
                   </Card>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

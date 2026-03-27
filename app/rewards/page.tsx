@@ -203,7 +203,7 @@ export default function RewardsPage() {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h3 className="font-bold text-lg text-foreground leading-tight">{reward.name}</h3>
                         <Badge variant="secondary" className="gradient-copper-gold text-white shrink-0">
-                          {cost} pts
+                          {cost} points
                         </Badge>
                       </div>
                       {reward.category && (
@@ -214,7 +214,7 @@ export default function RewardsPage() {
                       )}
                       {reward.loyalty_points_earn > 0 && (
                         <p className="text-xs text-amber-600/90 dark:text-amber-400 mb-3">
-                          Also earns {reward.loyalty_points_earn} pts when purchased normally
+                          Also earns {reward.loyalty_points_earn} points when purchased normally
                         </p>
                       )}
                       <div className="mt-auto">
@@ -266,7 +266,7 @@ export default function RewardsPage() {
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {ur.points_spent} pts · Expires {ur.expires_at ? new Date(ur.expires_at).toLocaleDateString() : "—"}
+                        {ur.points_spent} points · Expires {ur.expires_at ? new Date(ur.expires_at).toLocaleDateString() : "—"}
                       </p>
                     </Card>
                   ))}
@@ -294,7 +294,7 @@ export default function RewardsPage() {
                     <p className="font-semibold text-foreground truncate">{p.name}</p>
                     {p.category && <p className="text-xs text-muted-foreground">{p.category.name}</p>}
                   </div>
-                  <Badge className="gradient-copper-gold text-white shrink-0">+{p.loyalty_points_earn} pts / unit</Badge>
+                  <Badge className="gradient-copper-gold text-white shrink-0">+{p.loyalty_points_earn} points / unit</Badge>
                 </Card>
               ))}
             </div>
@@ -331,7 +331,7 @@ export default function RewardsPage() {
                         className={`font-bold shrink-0 ${transaction.points > 0 ? "text-green-500" : "text-red-500"}`}
                       >
                         {transaction.points > 0 ? "+" : ""}
-                        {transaction.points} pts
+                        {transaction.points} points
                       </div>
                     </div>
                   </Card>

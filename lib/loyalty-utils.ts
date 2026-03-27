@@ -1,6 +1,7 @@
 import type { CartItemData } from "@/lib/context/cart-context"
 
 export function pointsEarnedForCartLine(item: CartItemData): number {
+  if (item.isLoyaltyRedemption) return 0
   const earn = item.menuItem.loyalty_points_earn ?? 0
   return Math.max(0, earn) * item.quantity
 }

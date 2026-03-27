@@ -9,14 +9,16 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Sparkles, Loader2 } from "lucide-react"
 import Image from "next/image"
 import { getProductImage } from "@/lib/product-images"
+import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 
 interface MenuItemListCardProps {
   item: MenuItem
   onCustomize: () => void
   categoryName?: string
+  isAdding?: boolean
 }
 
-export default function MenuItemListCard({ item, onCustomize, categoryName }: MenuItemListCardProps) {
+export default function MenuItemListCard({ item, onCustomize, categoryName, isAdding = false }: MenuItemListCardProps) {
   const router = useRouter()
   const [imageError, setImageError] = useState(false)
   
@@ -75,7 +77,19 @@ export default function MenuItemListCard({ item, onCustomize, categoryName }: Me
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-1 sm:gap-1.5 md:gap-2 mt-0.5 sm:mt-1 md:mt-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 md:mt-1.5">
+            {(item.loyalty_points_earn ?? 0) > 0 && (
+              <LoyaltyPointsEarnBadge
+                points={item.loyalty_points_earn}
+                size="sm"
+                variant="compact"
+                context="product"
+                subtext=""
+              />
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-1 sm:gap-1.5 md:gap-2 mt-0.5 sm:mt-1 md:mt-1">
             <span className="font-serif text-sm sm:text-base md:text-lg font-bold text-brand">${item.base_price.toFixed(2)}</span>
             <Button
               size="sm"

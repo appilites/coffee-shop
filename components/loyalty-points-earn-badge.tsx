@@ -64,7 +64,7 @@ export function LoyaltyPointsEarnBadge({
         <div className="inline-flex items-center gap-1.5">
           <Star className={`${iconSizes[size]} fill-amber-500 text-amber-500 shrink-0`} />
           <span className="font-semibold text-amber-700 dark:text-amber-300">
-            +{resolved} loyalty {resolved === 1 ? "pt" : "pts"}
+            +{resolved} loyalty {resolved === 1 ? "point" : "points"}
           </span>
         </div>
         {showSub && line2 ? <span className={subtextClass}>{line2}</span> : null}

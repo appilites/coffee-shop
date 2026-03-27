@@ -7,7 +7,7 @@ import { ArrowLeft, Trash2, Minus, Plus, ShoppingBag } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
-import { sumCartLoyaltyPointsEarn } from "@/lib/loyalty-utils"
+import { sumCartLoyaltyPointsEarn, pointsEarnedForCartLine } from "@/lib/loyalty-utils"
 
 export default function CartPage() {
   const router = useRouter()
@@ -98,6 +98,18 @@ export default function CartPage() {
                             {custom.choices.map((c) => c.name).join(", ")}
                           </p>
                         ))}
+                      </div>
+                    )}
+
+                    {pointsEarnedForCartLine(item) > 0 && (
+                      <div className="mt-1.5 sm:mt-2">
+                        <LoyaltyPointsEarnBadge
+                          points={pointsEarnedForCartLine(item)}
+                          size="sm"
+                          variant="compact"
+                          context="order"
+                          subtext=""
+                        />
                       </div>
                     )}
 

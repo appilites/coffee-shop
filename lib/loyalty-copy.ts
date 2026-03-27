@@ -5,7 +5,7 @@ export const loyaltyCopy = {
   /** Product / customize dialogs */
   withPurchase: "Loyalty points · earned when you buy",
   /** Header / balance chip */
-  balanceHint: "loyalty pts",
+  balanceHint: "loyalty points",
   balanceSub: "Tap for Rewards",
   balanceTitle: "Your loyalty balance — open Rewards to redeem points for free items",
   /** Order confirmation */
@@ -13,4 +13,7 @@ export const loyaltyCopy = {
   /** Rewards page hero */
   rewardsHowItWorks:
     "Earn loyalty points when you buy eligible items. Redeem below for free menu items (added to your cart at $0).",
+  /** Checkout — guest must sign in to credit points */
+  checkoutGuestEarnHint:
+    "Log in or sign up so these loyalty points can be added to your account. Points per product are set in the admin dashboard.",
 } as const

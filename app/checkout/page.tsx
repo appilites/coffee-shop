@@ -12,10 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, User, Mail, Phone, Clock, ShoppingBag, MapPin } from "lucide-react"
 import Link from "next/link"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
-import { sumCartLoyaltyPointsEarn } from "@/lib/loyalty-utils"
+import { sumCartLoyaltyPointsEarn, pointsEarnedForCartLine } from "@/lib/loyalty-utils"
+import { useAuth } from "@/lib/context/auth-context"
+import { loyaltyCopy } from "@/lib/loyalty-copy"
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const { items, getTotal } = useCart()
   const [authMode, setAuthMode] = useState<"guest" | "login" | "signup">("guest")
   const [isLoading, setIsLoading] = useState(false)
@@ -33,6 +36,13 @@ export default function CheckoutPage() {
       router.push("/menu")
     }
   }, [items, router])
+
+  useEffect(() => {
+    // Logged-in users should never see login/signup tabs in checkout.
+    if (user && authMode !== "guest") {
+      setAuthMode("guest")
+    }
+  }, [user, authMode])
 
   const handleGuestCheckout = async () => {
     if (!guestData.name || !guestData.email || !guestData.phone) {
@@ -121,6 +131,31 @@ export default function CheckoutPage() {
 
       <div className="container mx-auto px-2 sm:px-3 md:px-4 py-3 sm:py-4 md:py-6">
         <div className="mx-auto max-w-6xl">
+          {loyaltyPointsThisOrder > 0 && (
+            <Card className="mb-3 sm:mb-4 overflow-hidden border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-yellow-500/10 dark:from-amber-950/40 dark:to-yellow-950/20">
+              <div className="p-3 sm:p-4 md:p-5 flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-start">
+                <div className="shrink-0">
+                  <LoyaltyPointsEarnBadge points={loyaltyPointsThisOrder} size="md" variant="full" context="order" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-2">
+                  {!user && (
+                    <>
+                      <p className="text-sm sm:text-base text-foreground leading-snug">{loyaltyCopy.checkoutGuestEarnHint}</p>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button asChild size="sm" variant="default" className="bg-brand text-white hover:bg-brand-dark">
+                          <Link href="/login?redirect=/checkout">Log in</Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline" className="border-brand text-brand hover:bg-brand/10">
+                          <Link href="/signup">Sign up</Link>
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
           {showSummary && (
             <Card className="mb-3 sm:mb-4 overflow-hidden border-brand/20 lg:hidden">
               <div className="bg-gradient-to-r from-brand/10 to-accent/10 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 flex items-center justify-between border-b border-border">
@@ -153,6 +188,11 @@ export default function CheckoutPage() {
                               .join(" • ")}
                           </p>
                         )}
+                        {pointsEarnedForCartLine(item) > 0 && (
+                          <p className="text-[10px] sm:text-xs font-medium text-amber-700 dark:text-amber-300 ml-5 sm:ml-7 mt-0.5">
+                            +{pointsEarnedForCartLine(item)} loyalty points for this item
+                          </p>
+                        )}
                       </div>
                       <span className="font-semibold text-xs sm:text-sm whitespace-nowrap text-foreground">
                         ${item.totalPrice.toFixed(2)}
@@ -173,9 +213,6 @@ export default function CheckoutPage() {
                     <div className="flex justify-between pt-2 sm:pt-2.5 mt-2 sm:mt-2.5 border-t border-border">
                       <span className="text-sm sm:text-base font-bold text-foreground">Total</span>
                       <span className="text-base sm:text-lg font-bold text-brand">${total.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-center pt-3">
-                      <LoyaltyPointsEarnBadge points={loyaltyPointsThisOrder} size="sm" variant="full" context="order" />
                     </div>
                   </div>
               </div>
@@ -220,27 +257,29 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="p-3 sm:p-4 md:p-6">
-                  <Tabs value={authMode} onValueChange={(v) => setAuthMode(v as any)} className="w-full">
-                    <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10 md:h-11 mb-4 sm:mb-5 md:mb-6 bg-muted/50">
-                      <TabsTrigger
-                        value="guest"
-                        className="text-[10px] sm:text-xs md:text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-brand"
-                      >
-                        Guest
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="login"
-                        className="text-[10px] sm:text-xs md:text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-brand"
-                      >
-                        Login
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="signup"
-                        className="text-[10px] sm:text-xs md:text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-brand"
-                      >
-                        Sign Up
-                      </TabsTrigger>
-                    </TabsList>
+                  <Tabs value={user ? "guest" : authMode} onValueChange={(v) => setAuthMode(v as any)} className="w-full">
+                    {!user && (
+                      <TabsList className="grid w-full grid-cols-3 h-9 sm:h-10 md:h-11 mb-4 sm:mb-5 md:mb-6 bg-muted/50">
+                        <TabsTrigger
+                          value="guest"
+                          className="text-[10px] sm:text-xs md:text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-brand"
+                        >
+                          Guest
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="login"
+                          className="text-[10px] sm:text-xs md:text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-brand"
+                        >
+                          Login
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="signup"
+                          className="text-[10px] sm:text-xs md:text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-brand"
+                        >
+                          Sign Up
+                        </TabsTrigger>
+                      </TabsList>
+                    )}
 
                     <TabsContent value="guest" className="space-y-3 sm:space-y-4 md:space-y-5 mt-0">
                       <div className="space-y-1.5 sm:space-y-2">
@@ -303,33 +342,37 @@ export default function CheckoutPage() {
                       </div>
                     </TabsContent>
 
-                    <TabsContent value="login" className="space-y-4 mt-0">
-                      <div className="flex items-start gap-3 p-4 bg-accent/10 rounded-xl border border-accent/20">
-                        <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-accent text-lg">ℹ️</span>
+                    {!user && (
+                      <TabsContent value="login" className="space-y-4 mt-0">
+                        <div className="flex items-start gap-3 p-4 bg-accent/10 rounded-xl border border-accent/20">
+                          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-accent text-lg">ℹ️</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground mb-1">Demo Mode</p>
+                            <p className="text-sm text-muted-foreground">
+                              Login functionality is disabled in the prototype. Please use Guest checkout to continue.
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground mb-1">Demo Mode</p>
-                          <p className="text-sm text-muted-foreground">
-                            Login functionality is disabled in the prototype. Please use Guest checkout to continue.
-                          </p>
-                        </div>
-                      </div>
-                    </TabsContent>
+                      </TabsContent>
+                    )}
 
-                    <TabsContent value="signup" className="space-y-4 mt-0">
-                      <div className="flex items-start gap-3 p-4 bg-accent/10 rounded-xl border border-accent/20">
-                        <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-accent text-lg">ℹ️</span>
+                    {!user && (
+                      <TabsContent value="signup" className="space-y-4 mt-0">
+                        <div className="flex items-start gap-3 p-4 bg-accent/10 rounded-xl border border-accent/20">
+                          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-accent text-lg">ℹ️</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground mb-1">Demo Mode</p>
+                            <p className="text-sm text-muted-foreground">
+                              Sign up functionality is disabled in the prototype. Please use Guest checkout to continue.
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-foreground mb-1">Demo Mode</p>
-                          <p className="text-sm text-muted-foreground">
-                            Sign up functionality is disabled in the prototype. Please use Guest checkout to continue.
-                          </p>
-                        </div>
-                      </div>
-                    </TabsContent>
+                      </TabsContent>
+                    )}
                   </Tabs>
                 </div>
               </Card>
@@ -427,6 +470,11 @@ export default function CheckoutPage() {
                                 .join(" • ")}
                             </p>
                           )}
+                          {pointsEarnedForCartLine(item) > 0 && (
+                            <p className="text-[10px] sm:text-xs font-medium text-amber-700 dark:text-amber-300 ml-5 sm:ml-7 mt-0.5">
+                              +{pointsEarnedForCartLine(item)} loyalty points for this item
+                            </p>
+                          )}
                         </div>
                         <span className="font-semibold text-sm whitespace-nowrap text-foreground">
                           ${item.totalPrice.toFixed(2)}
@@ -447,9 +495,6 @@ export default function CheckoutPage() {
                     <div className="flex justify-between pt-2 sm:pt-3 mt-2 sm:mt-3 border-t border-border">
                       <span className="text-base sm:text-lg font-bold text-foreground">Total</span>
                       <span className="text-lg sm:text-xl font-bold text-brand">${total.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-center pt-4">
-                      <LoyaltyPointsEarnBadge points={loyaltyPointsThisOrder} size="md" variant="full" context="order" />
                     </div>
                   </div>
                 </div>
