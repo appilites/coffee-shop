@@ -9,15 +9,20 @@ import { promotionRowToShop, type PromotionRow } from "@/lib/promotions"
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!url || !anonKey) {
+  if (!url || (!anonKey && !serviceRoleKey)) {
+    console.error("[shop-promotions] Missing Supabase env vars on server")
     return NextResponse.json([], {
       status: 200,
       headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
     })
   }
 
-  const supabase = createClient(url, anonKey, {
+  // Prefer service role on server (safe), fallback to anon key.
+  // This avoids production issues when anon RLS for `promotions` is not configured yet.
+  const key = serviceRoleKey || anonKey!
+  const supabase = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
@@ -28,7 +33,7 @@ export async function GET() {
     .order("sort_order", { ascending: true })
 
   if (error) {
-    console.error("[shop-promotions]", error.message)
+    console.error("[shop-promotions] query failed:", error.message)
     return NextResponse.json([], { status: 200 })
   }
 
