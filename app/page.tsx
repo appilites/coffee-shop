@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Coffee, Clock, CreditCard, Droplet, Zap } from "lucide-react"
 import { TrackOrderDialog } from "@/components/track-order-dialog"
 import { LoyaltyPointsDisplay } from "@/components/loyalty-points-display"
+import { PromotionsSection } from "@/components/promotions-section"
 import { useState } from "react"
 
 export default function HomePage() {
@@ -84,6 +85,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Promotions — directly under hero, card grid in PromotionsSection */}
+      <PromotionsSection />
 
       {/* Features */}
       <section className="container mx-auto px-4 py-12 sm:py-16 md:py-20" style={{ backgroundColor: '#181511' }}>

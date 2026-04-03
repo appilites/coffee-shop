@@ -1,14 +1,11 @@
-import { type NextRequest, NextResponse } from "next"
+import { type NextRequest, NextResponse } from "next/server"
+import { getSupabaseAdminClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   try {
     const { paymentIntentId, orderId } = await req.json()
 
     console.log("[v0] Confirming payment for order:", orderId)
-
-    // Simulate payment confirmation
-    // In production with Stripe: const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
-    // const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
 
     const simulatedPayment = {
       id: paymentIntentId,
@@ -17,35 +14,27 @@ export async function POST(req: NextRequest) {
       currency: "usd",
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error("Missing Supabase configuration")
+    if (!orderId) {
+      return NextResponse.json({ error: "orderId is required" }, { status: 400 })
     }
 
-    const updateResponse = await fetch(`${supabaseUrl}/rest/v1/orders?id=eq.${orderId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify({
+    const supabase = getSupabaseAdminClient()
+    // Payment captured — workflow status stays `pending` until kitchen/admin confirms in dashboard.
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from("orders")
+      .update({
         payment_status: "paid",
-        status: "confirmed",
-      }),
-    })
+        payment_intent_id: paymentIntentId ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .select()
+      .single()
 
-    if (!updateResponse.ok) {
-      const errorText = await updateResponse.text()
-      console.error("[v0] Order update error:", errorText)
-      throw new Error("Failed to update order")
+    if (updateError) {
+      console.error("[v0] Order update error:", updateError)
+      return NextResponse.json({ error: "Failed to update order", details: updateError.message }, { status: 500 })
     }
-
-    const orders = await updateResponse.json()
-    const updatedOrder = orders[0]
 
     console.log("[v0] Payment confirmed and order updated successfully")
 

@@ -23,7 +23,7 @@ export function LoyaltyPointsDisplay() {
         onClick={() => router.push("/login?redirect=/rewards")}
         className="h-auto min-h-7 sm:min-h-8 py-0.5 px-2 sm:px-2.5 md:px-3 text-[10px] sm:text-xs"
       >
-        Log in for Rewards
+        Log in · Rewards
       </Button>
     )
   }

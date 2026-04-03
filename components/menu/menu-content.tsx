@@ -35,6 +35,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
+import { toast } from "@/hooks/use-toast"
 
 interface MenuContentProps {
   menuData: {
@@ -209,6 +210,10 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
           totalPrice: item.base_price || 0,
         }
         addItem(cartItem)
+        toast({
+          title: "Added to cart",
+          description: `${item.name} has been added to your cart.`,
+        })
         await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
       } finally {
         setAddingItemId(null)
@@ -426,7 +431,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
         id: 'uncategorized',
         name: 'Other Items',
         description: null,
-        image_url: null,
         is_active: true,
         display_order: 9999,
         parent_id: null,

@@ -18,6 +18,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
+import { toast } from "@/hooks/use-toast"
 
 // Fallback Power Bowl Options (used only if database has no customizations)
 const FALLBACK_BASE_OPTIONS = [
@@ -508,6 +509,11 @@ export default function ProductDetailPage() {
         totalPrice: totalPrice,
       })
     }
+
+      toast({
+        title: "Added to cart",
+        description: `${product.name} has been added to your cart.`,
+      })
 
       await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
     } finally {

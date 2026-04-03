@@ -49,7 +49,7 @@ function PaymentContent() {
       }
 
       orderData.payment_status = "paid"
-      orderData.status = "confirmed"
+      orderData.status = "pending"
       orderData.payment_intent_id = `demo_pi_${Date.now()}`
 
       // Calculate estimated ready time (15 minutes from now)
@@ -64,6 +64,24 @@ function PaymentContent() {
       if (orderIndex !== -1) {
         orders[orderIndex] = orderData
         localStorage.setItem("all-orders", JSON.stringify(orders))
+      }
+
+      // Persist payment to Supabase (paid); order stays pending until dashboard confirms
+      try {
+        const confirmRes = await fetch("/api/confirm-payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            paymentIntentId: orderData.payment_intent_id,
+          }),
+        })
+        if (!confirmRes.ok) {
+          const errBody = await confirmRes.json().catch(() => ({}))
+          console.warn("Supabase order update after payment:", errBody)
+        }
+      } catch (e) {
+        console.warn("confirm-payment request failed:", e)
       }
 
       try {

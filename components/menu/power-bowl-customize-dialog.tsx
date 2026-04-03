@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
+import { toast } from "@/hooks/use-toast"
 
 interface PowerBowlCustomizeDialogProps {
   item: MenuItem
@@ -204,6 +205,10 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       quantity: 1,
       selectedCustomizations: customizations,
       totalPrice: calculateTotalPrice(),
+    })
+    toast({
+      title: "Added to cart",
+      description: `${item.name} has been added to your cart.`,
     })
 
       await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))

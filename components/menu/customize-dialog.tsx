@@ -12,6 +12,7 @@ import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 import { comboService } from "@/lib/supabase/database"
 import { productVariationsToCustomizations, defaultSelectionsForVariations } from "@/lib/product-variations"
+import { toast } from "@/hooks/use-toast"
 
 interface CustomizeDialogProps {
   item: MenuItem
@@ -237,6 +238,10 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
       quantity: quantity,
       selectedCustomizations: customizationData,
       totalPrice: calculateTotalPrice(),
+    })
+    toast({
+      title: "Added to cart",
+      description: `${item.name} has been added to your cart.`,
     })
 
     // Add combo items
@@ -558,6 +563,10 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
                     quantity: 1,
                     selectedCustomizations: [],
                     totalPrice: item.base_price || 0,
+                  })
+                  toast({
+                    title: "Added to cart",
+                    description: `${item.name} has been added to your cart.`,
                   })
                   await new Promise((r) => setTimeout(r, ADD_TO_CART_FEEDBACK_MS))
                   onClose()

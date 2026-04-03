@@ -22,8 +22,7 @@ export function OrdersTab() {
         .select(
           `
           *,
-          location:locations(*),
-          user:users(email, full_name)
+          items:order_items(*)
         `,
         )
         .order("created_at", { ascending: false })
@@ -142,32 +141,42 @@ export function OrdersTab() {
                     {getStatusBadge(order.status)}
                   </div>
                   <p className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
-                  {order.user && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Customer: {order.user.full_name || order.user.email}
-                    </p>
-                  )}
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Customer: {order.customer_name}
+                    {order.customer_email ? ` · ${order.customer_email}` : ""}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-bold text-foreground">${order.total_amount.toFixed(2)}</p>
-                  <p className="text-sm text-muted-foreground capitalize">{order.order_type}</p>
+                  <p className="text-sm text-muted-foreground capitalize">{order.order_type ?? "Order"}</p>
                 </div>
               </div>
 
               <div className="space-y-2 mb-4 py-4 border-y">
                 {order.items?.map((item: any, index: number) => (
-                  <div key={index} className="flex items-start justify-between text-sm">
+                  <div key={item.id ?? index} className="flex items-start justify-between text-sm">
                     <div>
                       <span className="font-medium text-foreground">
-                        {item.quantity}x {item.name}
+                        {item.quantity}x {item.item_name || item.name}
                       </span>
-                      {item.customizations && item.customizations.length > 0 && (
+                      {Array.isArray(item.customizations) && item.customizations.length > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          {item.customizations.map((c: any) => c.value).join(", ")}
+                          {item.customizations
+                            .map((c: any) =>
+                              c.optionName
+                                ? `${c.optionName}: ${(c.choices || []).map((ch: any) => ch.name || ch).join(", ")}`
+                                : typeof c?.value === "string"
+                                  ? c.value
+                                  : null,
+                            )
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       )}
                     </div>
-                    <span className="text-muted-foreground">${item.price.toFixed(2)}</span>
+                    <span className="text-muted-foreground">
+                      ${Number(item.total_price ?? item.price ?? 0).toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -9,6 +9,21 @@ export interface MenuCategory {
   updated_at: string
 }
 
+export interface Location {
+  id: string
+  name: string
+  address: string
+  city: string
+  state: string
+  zip_code: string
+  phone: string
+  is_active: boolean
+  opening_time: string
+  closing_time: string
+  created_at: string
+  updated_at: string
+}
+
 /** Product-level variation (from products API / menu_items.variations JSONB) */
 export interface ProductVariation {
   id: string
@@ -92,6 +107,15 @@ export interface Order {
   special_instructions: string | null
   created_at: string
   updated_at: string
+  /** Present when loaded with admin joins (e.g. Supabase select) */
+  order_type?: string
+  user?: { email?: string | null; full_name?: string | null } | null
+  items?: Array<{
+    quantity: number
+    name: string
+    price: number
+    customizations?: Array<{ value?: string } & Record<string, unknown>>
+  }>
 }
 
 export interface OrderItem {
@@ -179,6 +203,12 @@ export interface ComboOption {
   display_order: number
   created_at: string
   updated_at: string
+  /** Populated by combo queries (line items + nested menu_item) */
+  items?: Array<{
+    menu_item_id: string
+    quantity?: number
+    menu_item?: MenuItem
+  }>
 }
 
 export interface ComboItem {

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { ShoppingCart, Minus, Plus, Trash2, ArrowRight } from "lucide-react"
+import Image from "next/image"
+import { ShoppingCart, Minus, Plus, Trash2, ArrowRight, ImageIcon } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { pointsEarnedForCartLine } from "@/lib/loyalty-utils"
@@ -19,14 +20,14 @@ interface CartSlideMenuProps {
 
 export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: CartSlideMenuProps) {
   const [internalOpen, setInternalOpen] = useState(false)
-  const [isCartPage, setIsCartPage] = useState(false)
+  const [pageFlags, setPageFlags] = useState({ cart: false, checkout: false })
   const router = useRouter()
   const pathname = usePathname()
   const { items, removeItem, updateQuantity, getTotal, getItemCount } = useCart()
 
   // Check if we're on cart page - only on client side to avoid hydration mismatch
   useEffect(() => {
-    setIsCartPage(pathname === "/cart")
+    setPageFlags({ cart: pathname === "/cart", checkout: pathname === "/checkout" })
   }, [pathname])
 
   const isControlled = controlledOpen !== undefined
@@ -37,9 +38,9 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
   const tax = subtotal * 0.0875 // 8.75% tax
   const total = subtotal + tax
 
-  const handleViewCart = () => {
+  const handleCheckout = () => {
     setOpen(false)
-    router.push("/cart")
+    router.push("/checkout")
   }
 
   return (
@@ -87,7 +88,23 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
                   const linePoints = pointsEarnedForCartLine(item)
                   return (
                   <Card key={item.id} className="p-2.5 sm:p-3 md:p-4">
-                    <div className="flex gap-2 sm:gap-3">
+                    <div className="flex gap-2.5 sm:gap-3">
+                      <div className="relative h-16 w-16 sm:h-[72px] sm:w-[72px] shrink-0 overflow-hidden rounded-md border border-border/40 bg-muted">
+                        {item.menuItem.image_url ? (
+                          <Image
+                            src={item.menuItem.image_url}
+                            alt={item.menuItem.name}
+                            fill
+                            className="object-cover"
+                            sizes="72px"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                            <ImageIcon className="h-6 w-6 sm:h-7 sm:w-7 opacity-50" aria-hidden />
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 min-w-0">
                           <h3 className="font-serif text-xs sm:text-sm md:text-base font-semibold text-foreground truncate min-w-0">
@@ -171,12 +188,12 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
                 </div>
               </div>
 
-              {!isCartPage && (
+              {!pageFlags.cart && !pageFlags.checkout && (
                 <Button
-                  className="w-full gradient-copper-gold text-white z-index-10 hover:opacity-90 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base font-semibold"
-                  onClick={handleViewCart}
+                  className="w-full gradient-copper-gold text-white z-10 hover:opacity-90 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base font-semibold"
+                  onClick={handleCheckout}
                 >
-                  View Full Cart
+                  Checkout
                   <ArrowRight className="ml-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               )}

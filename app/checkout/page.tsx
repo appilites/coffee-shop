@@ -52,44 +52,85 @@ export default function CheckoutPage() {
 
     setIsLoading(true)
 
-    const orderId = `order-${Date.now()}`
-    const orderData = {
-      id: orderId,
-      items: items.map((item) => ({
-        id: item.id,
-        menu_item_id: item.menuItem.id,
-        name: item.menuItem.name,
-        quantity: item.quantity,
-        price: item.totalPrice,
-        is_loyalty_redemption: Boolean(item.isLoyaltyRedemption),
-        customizations: item.selectedCustomizations,
-      })),
-      order_type: "drive-through",
-      customer_name: guestData.name,
-      customer_email: guestData.email,
-      customer_phone: guestData.phone,
-      special_instructions: orderDetails.specialInstructions || null,
-      pickup_time: orderDetails.pickupTime || null,
-      status: "pending",
-      payment_status: "pending",
-      total_amount: total,
-      subtotal: subtotal,
-      tax_amount: tax,
-      created_at: new Date().toISOString(),
-    }
-
     try {
-      // Store order in localStorage
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            id: item.id,
+            menu_item_id: item.menuItem.id,
+            name: item.menuItem.name,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+            is_loyalty_redemption: Boolean(item.isLoyaltyRedemption),
+            customizations: item.selectedCustomizations,
+          })),
+          customer_name: guestData.name,
+          customer_email: guestData.email,
+          customer_phone: guestData.phone,
+          user_id: user?.id ?? null,
+          special_instructions: orderDetails.specialInstructions || null,
+          pickup_time: orderDetails.pickupTime || null,
+          is_guest_order: !user,
+        }),
+      })
+
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.error("Create order failed:", payload)
+        const detail =
+          typeof payload?.details === "string" ? payload.details : payload?.error || "Unknown error"
+        const hint = typeof payload?.hint === "string" ? `\n\n${payload.hint}` : ""
+        alert(`Could not save order to the database: ${detail}${hint}`)
+        return
+      }
+
+      const dbOrder = payload.order as {
+        id: string
+        order_number?: string
+        total_amount?: number
+        tax_amount?: number
+        created_at?: string
+      }
+      if (!dbOrder?.id) {
+        alert("Invalid response from server.")
+        return
+      }
+
+      const orderId = dbOrder.id
+      const orderData = {
+        id: orderId,
+        order_number: dbOrder.order_number,
+        items: items.map((item) => ({
+          id: item.id,
+          menu_item_id: item.menuItem.id,
+          name: item.menuItem.name,
+          quantity: item.quantity,
+          price: item.totalPrice,
+          is_loyalty_redemption: Boolean(item.isLoyaltyRedemption),
+          customizations: item.selectedCustomizations,
+        })),
+        order_type: "drive-through",
+        customer_name: guestData.name,
+        customer_email: guestData.email,
+        customer_phone: guestData.phone,
+        special_instructions: orderDetails.specialInstructions || null,
+        pickup_time: orderDetails.pickupTime || null,
+        status: "pending",
+        payment_status: "pending",
+        total_amount: total,
+        subtotal: subtotal,
+        tax_amount: tax,
+        created_at: dbOrder.created_at || new Date().toISOString(),
+      }
+
       localStorage.setItem(`order-${orderId}`, JSON.stringify(orderData))
+      const allOrders = JSON.parse(localStorage.getItem("all-orders") || "[]")
+      allOrders.push(orderData)
+      localStorage.setItem("all-orders", JSON.stringify(allOrders))
 
-      // Store in orders list
-      const orders = JSON.parse(localStorage.getItem("all-orders") || "[]")
-      orders.push(orderData)
-      localStorage.setItem("all-orders", JSON.stringify(orders))
-
-      setTimeout(() => {
-        router.push(`/payment?orderId=${orderId}`)
-      }, 500)
+      router.push(`/payment?orderId=${orderId}`)
     } catch (error) {
       console.error("Error creating order:", error)
       alert("Failed to create order. Please try again.")

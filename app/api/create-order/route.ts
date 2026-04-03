@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { getSupabaseAdminClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,14 +13,27 @@ export async function POST(req: NextRequest) {
       customer_phone,
       user_id,
       special_instructions,
+      pickup_time: rawPickup,
       is_guest_order = true,
     } = body
+
+    let pickup_time: string | null = null
+    if (rawPickup != null && String(rawPickup).trim() !== "") {
+      const t = new Date(String(rawPickup))
+      pickup_time = Number.isNaN(t.getTime()) ? null : t.toISOString()
+    }
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "No items in order" }, { status: 400 })
     }
     if (!customer_name || !customer_email) {
       return NextResponse.json({ error: "Customer name and email are required" }, { status: 400 })
+    }
+
+    for (const line of items) {
+      if (!(line as any).menu_item_id && !(line as any).menuItemId) {
+        return NextResponse.json({ error: "Each cart line must include menu_item_id" }, { status: 400 })
+      }
     }
 
     // Calculate totals from cart items (items contain totalPrice already calculated with customizations)
@@ -35,7 +48,12 @@ export async function POST(req: NextRequest) {
 
     console.log("[v0] Calculated totals - Subtotal:", subtotal, "Tax:", tax, "Total:", total)
 
-    const supabase = await createServerClient()
+    const supabase = getSupabaseAdminClient()
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn(
+        "[create-order] SUPABASE_SERVICE_ROLE_KEY is not set — using anon key. Inserts may fail if RLS blocks anon. Add the service role key or run scripts/supabase-orders-rls.sql in Supabase.",
+      )
+    }
 
     // Generate order number
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
@@ -50,6 +68,7 @@ export async function POST(req: NextRequest) {
       customer_email: customer_email,
       customer_phone: customer_phone || null,
       special_instructions: special_instructions || null,
+      pickup_time: pickup_time || null,
       is_guest_order: is_guest_order,
       order_number: orderNumber,
     }
@@ -60,27 +79,43 @@ export async function POST(req: NextRequest) {
 
     if (orderError) {
       console.error("[v0] Error creating order:", orderError)
-      return NextResponse.json({ error: "Failed to create order", details: orderError.message }, { status: 500 })
+      const hint =
+        orderError.message?.includes("permission denied") ||
+        orderError.message?.includes("row-level security") ||
+        orderError.code === "42501"
+          ? "Add SUPABASE_SERVICE_ROLE_KEY to .env or run scripts/supabase-orders-rls.sql in Supabase SQL Editor."
+          : undefined
+      return NextResponse.json(
+        { error: "Failed to create order", details: orderError.message, hint },
+        { status: 500 },
+      )
     }
 
     console.log("[v0] Order created successfully:", order.id)
 
     // and calculate unit_price from totalPrice / quantity
     const orderItems = items.map((item: any) => {
-      // Extract the menu_item UUID from the cart item ID (remove the timestamp suffix)
-      const menuItemId = item.id.includes("-") ? item.id.substring(0, item.id.lastIndexOf("-")) : item.id
+      const menuItemId = item.menu_item_id || item.menuItemId
 
-      const quantity = Number.parseInt(item.quantity) || 1
-      const unitPrice = Number.parseFloat((item.totalPrice / quantity).toFixed(2))
+      const quantity = Number.parseInt(String(item.quantity), 10) || 1
+      const lineTotal = Number.parseFloat(String(item.totalPrice)) || 0
+      const unitPrice = Number.parseFloat((lineTotal / quantity).toFixed(2))
+
+      const rawCustom = item.customizations ?? item.selectedCustomizations
+      const customizations = Array.isArray(rawCustom)
+        ? rawCustom
+        : rawCustom != null && typeof rawCustom === "object"
+          ? [rawCustom]
+          : []
 
       return {
         order_id: order.id,
-        menu_item_id: menuItemId, // Clean UUID without timestamp
-        item_name: item.name,
-        quantity: quantity,
+        menu_item_id: String(menuItemId),
+        item_name: String(item.name || "Item"),
+        quantity,
         unit_price: unitPrice,
-        total_price: Number.parseFloat(item.totalPrice.toFixed(2)),
-        customizations: item.customizations || {},
+        total_price: Number.parseFloat(lineTotal.toFixed(2)),
+        customizations,
       }
     })
 
@@ -90,9 +125,25 @@ export async function POST(req: NextRequest) {
 
     if (itemsError) {
       console.error("[v0] Error creating order items:", itemsError)
-      // Try to delete the order if items failed
       await supabase.from("orders").delete().eq("id", order.id)
-      return NextResponse.json({ error: "Failed to create order items", details: itemsError.message }, { status: 500 })
+      const isFk =
+        itemsError.code === "23503" ||
+        itemsError.message?.includes("foreign key") ||
+        itemsError.message?.includes("violates foreign key")
+      const hint = isFk
+        ? "Each cart line must reference a real menu_items.id in Supabase. Mock-only products or wrong IDs will fail. Sync products or use items from your live menu."
+        : itemsError.message?.includes("permission denied") ||
+            itemsError.message?.includes("row-level security")
+          ? "Add SUPABASE_SERVICE_ROLE_KEY or run scripts/supabase-orders-rls.sql."
+          : undefined
+      return NextResponse.json(
+        {
+          error: "Failed to create order items",
+          details: itemsError.message,
+          hint,
+        },
+        { status: isFk ? 400 : 500 },
+      )
     }
 
     console.log("[v0] Order items created successfully")
