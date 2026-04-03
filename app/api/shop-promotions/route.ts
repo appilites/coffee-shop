@@ -6,16 +6,31 @@ import { promotionRowToShop, type PromotionRow } from "@/lib/promotions"
  * Active promotions for the shop (same Supabase as admin).
  * Uses anon key + RLS (`is_active = true`). Do not expose service role to the client.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const reqUrl = new URL(request.url)
+  const debug = reqUrl.searchParams.get("debug") === "1"
+  const projectHost = url ? new URL(url).host : null
 
   if (!url || (!anonKey && !serviceRoleKey)) {
     console.error("[shop-promotions] Missing Supabase env vars on server")
+    if (debug) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "missing_env",
+          projectHost,
+          hasAnonKey: Boolean(anonKey),
+          hasServiceRoleKey: Boolean(serviceRoleKey),
+        },
+        { status: 200, headers: { "Cache-Control": "no-store" } },
+      )
+    }
     return NextResponse.json([], {
       status: 200,
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
+      headers: { "Cache-Control": "no-store" },
     })
   }
 
@@ -34,13 +49,36 @@ export async function GET() {
 
   if (error) {
     console.error("[shop-promotions] query failed:", error.message)
+    if (debug) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "query_failed",
+          projectHost,
+          keyMode: serviceRoleKey ? "service_role" : "anon",
+          error: error.message,
+        },
+        { status: 200, headers: { "Cache-Control": "no-store" } },
+      )
+    }
     return NextResponse.json([], { status: 200 })
   }
 
   const rows = (data ?? []) as PromotionRow[]
   const promotions = rows.map(promotionRowToShop)
 
-  return NextResponse.json(promotions, {
-    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
-  })
+  if (debug) {
+    return NextResponse.json(
+      {
+        ok: true,
+        count: promotions.length,
+        projectHost,
+        keyMode: serviceRoleKey ? "service_role" : "anon",
+        sampleIds: promotions.slice(0, 5).map((p) => p.id),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    )
+  }
+
+  return NextResponse.json(promotions, { headers: { "Cache-Control": "no-store" } })
 }
