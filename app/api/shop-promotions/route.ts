@@ -2,19 +2,23 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { promotionRowToShop, type PromotionRow } from "@/lib/promotions"
 
+const FALLBACK_SUPABASE_URL = "https://xnmnklgmmeqpajxwrkir.supabase.co"
+const FALLBACK_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhubW5rbGdtbWVxcGFqeHdya2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzQ0MzgsImV4cCI6MjA4ODMxMDQzOH0.kQAaa27pr99vO8Ez1ffQJMrdFmiYD2uc00odwOmA9eM"
+
 /**
  * Active promotions for the shop (same Supabase as admin).
  * Uses anon key + RLS (`is_active = true`). Do not expose service role to the client.
  */
 export async function GET(request: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const reqUrl = new URL(request.url)
   const debug = reqUrl.searchParams.get("debug") === "1"
   const projectHost = url ? new URL(url).host : null
 
-  if (!url || (!anonKey && !serviceRoleKey)) {
+  if (!url || !anonKey) {
     console.error("[shop-promotions] Missing Supabase env vars on server")
     if (debug) {
       return NextResponse.json(
@@ -36,7 +40,7 @@ export async function GET(request: Request) {
 
   // Prefer service role on server (safe), fallback to anon key.
   // This avoids production issues when anon RLS for `promotions` is not configured yet.
-  const key = serviceRoleKey || anonKey!
+  const key = serviceRoleKey || anonKey
   const supabase = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
