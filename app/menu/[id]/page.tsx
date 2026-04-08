@@ -128,8 +128,7 @@ export default function ProductDetailPage() {
       const categoryId = fetchedProduct.category_id || ""
       const isPowerBowlItem =
         itemName.includes("power bowl") ||
-        categoryId === "cat-power-bowl" ||
-        (fetchedProduct.description?.toLowerCase().includes("build your own") ?? false)
+        categoryId === "cat-power-bowl"
       setIsPowerBowl(isPowerBowlItem)
 
       if (fetchedProduct.category_id) {

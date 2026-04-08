@@ -188,10 +188,9 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
   const isPowerBowlItem = (item: MenuItem) => {
     const itemName = item.name.toLowerCase()
     const categoryId = item.category_id || ""
-    // Check if it's a Power Bowl by name or category
+    // Keep this strict: "build your own" can exist in non-power-bowl products (e.g. waffles).
     return itemName.includes("power bowl") || 
-           categoryId === "cat-power-bowl" ||
-           item.description?.toLowerCase().includes("build your own")
+           categoryId === "cat-power-bowl"
   }
 
   // Handle add to cart - check if item has customizations from database
