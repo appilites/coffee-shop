@@ -31,6 +31,10 @@ export interface ProductVariation {
   title: string
   /** If false, customer may skip this group. Omitted in legacy JSON → treated as required. */
   required?: boolean
+  /** Checkbox only: first N picks only use priceModifier. */
+  maxIncludedSelections?: number
+  /** Checkbox only: charged per selection after maxIncludedSelections. */
+  extraSelectionPrice?: number
   options: Array<{
     id: string
     label: string
@@ -77,6 +81,10 @@ export interface CustomizationOption {
   option_name: string
   option_type: "single" | "multiple"
   is_required: boolean
+  /** Mirrors DB column `max_included_selections` for multiple options. */
+  max_included_selections?: number | null
+  /** Mirrors DB column `extra_selection_price` for multiple options. */
+  extra_selection_price?: number | null
   created_at: string
   choices?: CustomizationChoice[]
 }

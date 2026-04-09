@@ -13,10 +13,10 @@ import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 import { comboService } from "@/lib/supabase/database"
 import { productVariationsToCustomizations, defaultSelectionsForVariations } from "@/lib/product-variations"
 import { toast } from "@/hooks/use-toast"
+import { calculateLineTotalFromSelections } from "@/lib/calculate-variation-selection-price"
 
 interface CustomizeDialogProps {
   item: MenuItem
-  customizations: (CustomizationOption & { choices: CustomizationChoice[] })[]
   categoryName?: string
   menuItems?: MenuItem[]
   open: boolean
@@ -24,8 +24,10 @@ interface CustomizeDialogProps {
 }
 
 const ADD_TO_CART_FEEDBACK_MS = 450
+const PICK3_INCLUDED_SELECTIONS = 3
+const PICK3_EXTRA_SELECTION_PRICE = 1
 
-export default function CustomizeDialog({ item, customizations: propCustomizations, categoryName, menuItems = [], open, onClose }: CustomizeDialogProps) {
+export default function CustomizeDialog({ item, categoryName, menuItems = [], open, onClose }: CustomizeDialogProps) {
   const { addItem } = useCart()
   const [addingToCart, setAddingToCart] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
@@ -33,20 +35,14 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
   const [quantity, setQuantity] = useState(1)
   const [selectedOptions, setSelectedOptions] = useState<Map<string, string[]>>(new Map())
   const [selectedCombos, setSelectedCombos] = useState<Set<string>>(new Set())
-  const [customizations, setCustomizations] = useState<(CustomizationOption & { choices: CustomizationChoice[] })[]>(propCustomizations || [])
-  const [loadingCustomizations, setLoadingCustomizations] = useState(false)
   const [availableCombos, setAvailableCombos] = useState<ComboOption[]>([])
   const [loadingCombos, setLoadingCombos] = useState(false)
 
-  // All variations live in menu_items.variations (JSONB) – no separate table lookup needed
-  useEffect(() => {
-    if (!open) {
-      setCustomizations([])
-      return
-    }
-    setCustomizations(productVariationsToCustomizations(item.variations))
-    setLoadingCustomizations(false)
-  }, [open, item.variations])
+  /** Single source of truth: `menu_items.variations` only (no legacy customization_options table). */
+  const customizations = useMemo(
+    () => productVariationsToCustomizations(item.variations),
+    [item.id, item.variations],
+  )
 
   // Fetch combos from database
   useEffect(() => {
@@ -63,7 +59,7 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
         .finally(() => {
           setLoadingCombos(false)
         })
-      } else {
+    } else {
       setAvailableCombos([])
     }
   }, [open, item.id])
@@ -149,6 +145,9 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
       const option = currentStepData.data as CustomizationOption & { choices: CustomizationChoice[] }
       if (option.is_required) {
         const selections = selectedOptions.get(option.id)
+        if (option.option_type === "multiple" && isPick3FruitsOption(option.option_name)) {
+          return Boolean(selections && selections.length >= PICK3_INCLUDED_SELECTIONS)
+        }
         return selections && selections.length > 0
       }
       return true
@@ -162,20 +161,7 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
   }
 
   const calculateTotalPrice = () => {
-    let price = item.base_price || 0
-
-    // Add customization prices
-    selectedOptions.forEach((choiceIds, optionId) => {
-      const option = customizations.find((c) => c.id === optionId)
-      if (option) {
-        choiceIds.forEach((choiceId) => {
-          const choice = option.choices.find((ch) => ch.id === choiceId)
-          if (choice) {
-            price += choice.price_modifier || 0
-          }
-        })
-      }
-    })
+    let price = calculateLineTotalFromSelections(item.base_price || 0, item.variations, mapSelections(selectedOptions))
 
     // Add combo prices
     selectedCombos.forEach((comboId) => {
@@ -199,6 +185,22 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
     })
 
     return price * quantity
+  }
+
+  function mapSelections(map: Map<string, string[]>): Record<string, string | string[]> {
+    const out: Record<string, string | string[]> = {}
+    map.forEach((ids, variationId) => {
+      if (!ids || ids.length === 0) return
+      const option = customizations.find((c) => c.id === variationId)
+      if (!option) return
+      out[variationId] = option.option_type === "single" ? ids[0] : [...ids]
+    })
+    return out
+  }
+
+  function isPick3FruitsOption(optionName: string | undefined): boolean {
+    const s = (optionName || "").toLowerCase()
+    return s.includes("pick 3") || s.includes("3 fruits")
   }
 
   const handleAddToCart = async () => {
@@ -309,6 +311,14 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
 
     if (currentStepData.type === 'customization') {
       const option = currentStepData.data as CustomizationOption & { choices: CustomizationChoice[] }
+      if (option.option_type === "multiple" && isPick3FruitsOption(option.option_name)) {
+        const selected = selectedOptions.get(option.id) || []
+        const extraCount = Math.max(0, selected.length - PICK3_INCLUDED_SELECTIONS)
+        const extraCharge = extraCount * PICK3_EXTRA_SELECTION_PRICE
+        return extraCount > 0
+          ? `Select at least 3 fruits (${selected.length} selected) • Extra fruit charge +$${extraCharge.toFixed(2)}`
+          : `Select at least 3 fruits (${selected.length}/${PICK3_INCLUDED_SELECTIONS} selected)`
+      }
       if (option.is_required) {
         return option.option_type === "multiple"
           ? "Select at least one option"
@@ -388,36 +398,79 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
               })}
             </div>
           ) : (
-            <div className="space-y-3">
-              {validChoices.map((choice: CustomizationChoice) => {
-                const isSelected = selected.includes(choice.id)
-                return (
-                  <button
-                    key={choice.id}
-                    onClick={() => handleOptionChange(option.id, choice.id, true)}
-                    className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                      isSelected
-                        ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
-                        : "border-border hover:border-brand/50 hover:bg-muted/50"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {isSelected && (
-                          <span className="text-brand text-sm">✓</span>
+            isPick3FruitsOption(option.option_name) ? (
+              <div className="space-y-2">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  First {PICK3_INCLUDED_SELECTIONS} fruits included. Each extra fruit +$
+                  {PICK3_EXTRA_SELECTION_PRICE.toFixed(2)}.
+                </p>
+                {Math.max(0, selected.length - PICK3_INCLUDED_SELECTIONS) > 0 ? (
+                  <p className="text-xs sm:text-sm font-medium text-brand">
+                    Extra fruit charges: +$
+                    {(
+                      Math.max(0, selected.length - PICK3_INCLUDED_SELECTIONS) * PICK3_EXTRA_SELECTION_PRICE
+                    ).toFixed(2)}
+                  </p>
+                ) : null}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                  {validChoices.map((choice: CustomizationChoice) => {
+                    const isSelected = selected.includes(choice.id)
+                    const selectedIndex = selected.indexOf(choice.id)
+                    const extraForThisSelection = isSelected && selectedIndex >= PICK3_INCLUDED_SELECTIONS
+                    return (
+                      <button
+                        key={choice.id}
+                        onClick={() => handleOptionChange(option.id, choice.id, true)}
+                        className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
+                          isSelected
+                            ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                            : "border-border hover:border-brand/50 hover:bg-muted/50"
+                        }`}
+                      >
+                        <span className="text-base sm:text-lg font-semibold">{choice.choice_name}</span>
+                        {isSelected ? <div className="mt-1 text-brand text-sm">✓ Selected</div> : null}
+                        {extraForThisSelection ? (
+                          <div className="mt-0.5 text-xs text-brand">
+                            +${PICK3_EXTRA_SELECTION_PRICE.toFixed(2)} extra
+                          </div>
+                        ) : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {validChoices.map((choice: CustomizationChoice) => {
+                  const isSelected = selected.includes(choice.id)
+                  return (
+                    <button
+                      key={choice.id}
+                      onClick={() => handleOptionChange(option.id, choice.id, true)}
+                      className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                        isSelected
+                          ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                          : "border-border hover:border-brand/50 hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isSelected && (
+                            <span className="text-brand text-sm">✓</span>
+                          )}
+                          <span className="text-lg font-semibold">{choice.choice_name}</span>
+                        </div>
+                        {choice.price_modifier > 0 && (
+                          <span className="text-sm text-muted-foreground">
+                            +${choice.price_modifier.toFixed(2)}
+                          </span>
                         )}
-                        <span className="text-lg font-semibold">{choice.choice_name}</span>
                       </div>
-                      {choice.price_modifier > 0 && (
-                        <span className="text-sm text-muted-foreground">
-                          +${choice.price_modifier.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+                    </button>
+                  )
+                })}
+              </div>
+            )
           )}
         </div>
       )
@@ -515,26 +568,6 @@ export default function CustomizeDialog({ item, customizations: propCustomizatio
     }
 
     return null
-  }
-
-  if (loadingCustomizations) {
-    return (
-      <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Customize {item.name}</DialogTitle>
-          </DialogHeader>
-          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b bg-gradient-to-r from-amber-950/40 to-stone-900/90 dark:from-[#2a241c] dark:to-[#181511]">
-            <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-              {item.name}
-            </h2>
-          </div>
-          <div className="flex-1 flex items-center justify-center py-8">
-            <p className="text-sm text-muted-foreground">Loading variations...</p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
   }
 
   if (allSteps.length === 0) {

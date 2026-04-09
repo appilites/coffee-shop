@@ -16,6 +16,8 @@ export function productVariationsToCustomizations(
     option_name: v.title,
     option_type: v.type === "checkbox" ? "multiple" : "single",
     is_required: v.required !== false,
+    max_included_selections: typeof v.maxIncludedSelections === "number" ? v.maxIncludedSelections : null,
+    extra_selection_price: typeof v.extraSelectionPrice === "number" ? v.extraSelectionPrice : null,
     created_at: "",
     choices: (v.options || []).map((opt) => ({
       id: opt.id,

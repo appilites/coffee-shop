@@ -37,6 +37,8 @@ const FRUIT_OPTIONS = [
   { id: "pineapple", name: "Pineapple", priceModifier: 0 },
   { id: "strawberry", name: "Strawberry", priceModifier: 0 },
 ]
+const FRUIT_INCLUDED_SELECTIONS = 3
+const FRUIT_EXTRA_SELECTION_PRICE = 1
 
 // Step 4: Agaves Boosta
 const BOOSTA_OPTIONS = [
@@ -96,7 +98,7 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
   const handleFruitToggle = (fruitId: string) => {
     if (selectedFruits.includes(fruitId)) {
       setSelectedFruits(selectedFruits.filter(f => f !== fruitId))
-    } else if (selectedFruits.length < 3) {
+    } else {
       setSelectedFruits([...selectedFruits, fruitId])
     }
   }
@@ -125,6 +127,10 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       const fruit = FRUIT_OPTIONS.find(f => f.id === fruitId)
       if (fruit) price += fruit.priceModifier
     })
+    const extraFruitCount = Math.max(0, selectedFruits.length - FRUIT_INCLUDED_SELECTIONS)
+    if (extraFruitCount > 0) {
+      price += extraFruitCount * FRUIT_EXTRA_SELECTION_PRICE
+    }
 
     // Add boosta price modifiers
     selectedBoostas.forEach(boostaId => {
@@ -142,7 +148,7 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       case 2:
         return selectedGranola !== ""
       case 3:
-        return selectedFruits.length === 3
+        return selectedFruits.length >= FRUIT_INCLUDED_SELECTIONS
       case 4:
         return true
       default:
@@ -225,7 +231,7 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       case 2:
         return "Add Granola or Not"
       case 3:
-        return "Pick 3 Fruits"
+        return "Pick 3+ Fruits"
       case 4:
         return "Agaves Boosta"
       default:
@@ -240,7 +246,11 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
       case 2:
         return "Select your granola option"
       case 3:
-        return `Select exactly 3 fruits (${selectedFruits.length}/3 selected)`
+        return selectedFruits.length > FRUIT_INCLUDED_SELECTIONS
+          ? `Select at least 3 fruits (${selectedFruits.length} selected) • Extra fruit charge +$${(
+              (selectedFruits.length - FRUIT_INCLUDED_SELECTIONS) * FRUIT_EXTRA_SELECTION_PRICE
+            ).toFixed(2)}`
+          : `Select at least 3 fruits (${selectedFruits.length}/${FRUIT_INCLUDED_SELECTIONS} selected)`
       case 4:
         return "Add optional boosts (multiple selections allowed)"
       default:
@@ -362,25 +372,33 @@ export default function PowerBowlCustomizeDialog({ item, open, onClose }: PowerB
             {/* Step 3: Fruits */}
             {currentStep === 3 && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  First {FRUIT_INCLUDED_SELECTIONS} fruits included. Each extra fruit +$
+                  {FRUIT_EXTRA_SELECTION_PRICE.toFixed(2)}.
+                </p>
+                {Math.max(0, selectedFruits.length - FRUIT_INCLUDED_SELECTIONS) > 0 ? (
+                  <p className="text-xs sm:text-sm font-medium text-brand">
+                    Extra fruit charges: +$
+                    {(
+                      Math.max(0, selectedFruits.length - FRUIT_INCLUDED_SELECTIONS) * FRUIT_EXTRA_SELECTION_PRICE
+                    ).toFixed(2)}
+                  </p>
+                ) : null}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                   {FRUIT_OPTIONS.map((fruit) => {
                     const isSelected = selectedFruits.includes(fruit.id)
-                    const isDisabled = !isSelected && selectedFruits.length >= 3
                     
                     return (
                       <button
                         key={fruit.id}
                         onClick={() => handleFruitToggle(fruit.id)}
-                        disabled={isDisabled}
-                        className={`p-4 rounded-lg border-2 text-center transition-all ${
+                        className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
                           isSelected
                             ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
-                            : isDisabled
-                            ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
                             : "border-border hover:border-brand/50 hover:bg-muted/50"
                         }`}
                       >
-                        <span className="text-lg font-semibold">{fruit.name}</span>
+                        <span className="text-base sm:text-lg font-semibold">{fruit.name}</span>
                         {isSelected && (
                           <div className="mt-1 text-brand text-sm">
                             ✓ Selected

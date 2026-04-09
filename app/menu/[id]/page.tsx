@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useCart } from "@/lib/context/cart-context"
 import { LoyaltyPointsEarnBadge } from "@/components/loyalty-points-earn-badge"
 import { toast } from "@/hooks/use-toast"
+import { calculateLineTotalFromSelections } from "@/lib/calculate-variation-selection-price"
 
 // Fallback Power Bowl Options (used only if database has no customizations)
 const FALLBACK_BASE_OPTIONS = [
@@ -40,6 +41,8 @@ const FALLBACK_FRUIT_OPTIONS = [
   { id: "pineapple", name: "Pineapple", priceModifier: 0 },
   { id: "strawberry", name: "Strawberry", priceModifier: 0 },
 ]
+const FALLBACK_FRUIT_INCLUDED_SELECTIONS = 3
+const FALLBACK_FRUIT_EXTRA_SELECTION_PRICE = 1
 
 const ADD_TO_CART_FEEDBACK_MS = 450
 
@@ -100,7 +103,11 @@ export default function ProductDetailPage() {
         name: ch.choice_name,
         priceModifier: ch.price_modifier || 0,
         isDefault: ch.is_default
-      }))
+      })),
+      maxIncludedSelections:
+        typeof opt.max_included_selections === "number" ? opt.max_included_selections : undefined,
+      extraSelectionPrice:
+        typeof opt.extra_selection_price === "number" ? opt.extra_selection_price : undefined,
     }))
   }, [isPowerBowl, customizations])
 
@@ -219,24 +226,16 @@ export default function ProductDetailPage() {
     setSelectedOptions(newSelections)
   }
 
+  const isPick3FruitsOption = (optionName: string | undefined) => {
+    const s = (optionName || "").toLowerCase()
+    return s.includes("pick 3") || s.includes("3 fruits")
+  }
+
   // Calculate total price
   const totalPrice = useMemo(() => {
     if (!product) return 0
-    let price = product.base_price || 0
-
-    selectedOptions.forEach((choiceIds, optionId) => {
-      const option = customizations.find((c) => c.id === optionId)
-      if (option) {
-        choiceIds.forEach((choiceId) => {
-          const choice = option.choices.find((ch) => ch.id === choiceId)
-          if (choice) {
-            price += choice.price_modifier || 0
-          }
-        })
-      }
-    })
-
-    return price * quantity
+    const unit = calculateLineTotalFromSelections(product.base_price || 0, product.variations, mapSelections(selectedOptions))
+    return unit * quantity
   }, [product, selectedOptions, quantity, customizations])
 
   // Check if can add to cart (all required options selected)
@@ -246,6 +245,9 @@ export default function ProductDetailPage() {
     if (requiredCustomizations.length === 0) return true
     return requiredCustomizations.every((c) => {
       const selections = selectedOptions.get(c.id)
+      if (c.option_type === "multiple" && isPick3FruitsOption(c.option_name)) {
+        return Boolean(selections && selections.length >= 3)
+      }
       return selections && selections.length > 0
     })
   }, [customizations, selectedOptions])
@@ -268,7 +270,7 @@ export default function ProductDetailPage() {
   const handleFruitToggle = (fruitId: string) => {
     if (selectedFruits.includes(fruitId)) {
       setSelectedFruits(selectedFruits.filter(f => f !== fruitId))
-    } else if (selectedFruits.length < 3) {
+    } else {
       setSelectedFruits([...selectedFruits, fruitId])
     }
   }
@@ -286,7 +288,7 @@ export default function ProductDetailPage() {
       switch (currentStep) {
         case 1: return selectedBase !== ""
         case 2: return selectedGranola !== ""
-        case 3: return selectedFruits.length === 3
+        case 3: return selectedFruits.length >= FALLBACK_FRUIT_INCLUDED_SELECTIONS
         case 4: return true
         default: return false
       }
@@ -297,7 +299,7 @@ export default function ProductDetailPage() {
     if (step.isRequired) {
       if (step.type === 'multiple') {
         const pick3Step = step.title.toLowerCase().includes('pick 3') || step.title.toLowerCase().includes('3 fruits')
-        return pick3Step ? selections.length === 3 : selections.length > 0
+        return pick3Step ? selections.length >= 3 : selections.length > 0
       }
       return selections.length > 0
     }
@@ -317,23 +319,47 @@ export default function ProductDetailPage() {
         const fruit = FALLBACK_FRUIT_OPTIONS.find(f => f.id === fruitId)
         if (fruit) price += fruit.priceModifier
       })
+      const extraFruitCount = Math.max(0, selectedFruits.length - FALLBACK_FRUIT_INCLUDED_SELECTIONS)
+      if (extraFruitCount > 0) {
+        price += extraFruitCount * FALLBACK_FRUIT_EXTRA_SELECTION_PRICE
+      }
       selectedBoostas.forEach(boostaId => {
         const boosta = FALLBACK_BOOSTA_OPTIONS.find(b => b.id === boostaId)
         if (boosta) price += boosta.priceModifier
       })
     } else {
-      selectedOptions.forEach((choiceIds, optionId) => {
-        const option = customizations.find(c => c.id === optionId)
-        if (option) {
-          choiceIds.forEach(choiceId => {
-            const choice = option.choices.find(ch => ch.id === choiceId)
-            if (choice) price += choice.price_modifier || 0
-          })
+      price = calculateLineTotalFromSelections(product.base_price || 0, product.variations, mapSelections(selectedOptions))
+      // Backward-compatible rule for legacy Power Bowl variations:
+      // if extra pricing metadata is missing, charge $1 per fruit after first 3.
+      const fruitStep = powerBowlSteps.find(
+        (s) => s.title.toLowerCase().includes("pick 3") || s.title.toLowerCase().includes("3 fruits"),
+      )
+      if (fruitStep) {
+        const selected = selectedOptions.get(fruitStep.optionId) || []
+        const hasMeta =
+          typeof fruitStep.maxIncludedSelections === "number" &&
+          typeof fruitStep.extraSelectionPrice === "number"
+        if (!hasMeta) {
+          const extraCount = Math.max(0, selected.length - FALLBACK_FRUIT_INCLUDED_SELECTIONS)
+          if (extraCount > 0) {
+            price += extraCount * FALLBACK_FRUIT_EXTRA_SELECTION_PRICE
+          }
         }
-      })
+      }
     }
 
     return price * quantity
+  }
+
+  function mapSelections(map: Map<string, string[]>): Record<string, string | string[]> {
+    const out: Record<string, string | string[]> = {}
+    map.forEach((ids, variationId) => {
+      if (!ids || ids.length === 0) return
+      const option = customizations.find((c) => c.id === variationId)
+      if (!option) return
+      out[variationId] = option.option_type === "single" ? ids[0] : [...ids]
+    })
+    return out
   }
 
   const getStepTitle = (): ReactNode => {
@@ -344,7 +370,7 @@ export default function ProductDetailPage() {
           : currentStep === 2
             ? "Add Granola or Not"
             : currentStep === 3
-              ? "Pick 3 Fruits"
+              ? "Pick 3+ Fruits"
               : currentStep === 4
                 ? "Agaves Boosta"
                 : ""
@@ -381,7 +407,13 @@ export default function ProductDetailPage() {
       switch (currentStep) {
         case 1: return "Choose your bowl base"
         case 2: return "Select your granola option"
-        case 3: return `Select exactly 3 fruits (${selectedFruits.length}/3 selected)`
+        case 3: {
+          const extraCount = Math.max(0, selectedFruits.length - FALLBACK_FRUIT_INCLUDED_SELECTIONS)
+          const extraCharge = extraCount * FALLBACK_FRUIT_EXTRA_SELECTION_PRICE
+          return extraCount > 0
+            ? `Select at least 3 fruits (${selectedFruits.length} selected) • Extra fruit charge +$${extraCharge.toFixed(2)}`
+            : `Select at least 3 fruits (${selectedFruits.length}/${FALLBACK_FRUIT_INCLUDED_SELECTIONS} selected)`
+        }
         case 4: return "Add optional boosts (multiple selections allowed)"
         default: return ""
       }
@@ -788,21 +820,32 @@ export default function ProductDetailPage() {
                         </div>
                       )}
                       {currentStep === 3 && (
+                        <div className="space-y-2">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            First {FALLBACK_FRUIT_INCLUDED_SELECTIONS} fruits included.
+                            {` `}
+                            Each extra fruit +${FALLBACK_FRUIT_EXTRA_SELECTION_PRICE.toFixed(2)}.
+                          </p>
+                          {Math.max(0, selectedFruits.length - FALLBACK_FRUIT_INCLUDED_SELECTIONS) > 0 && (
+                            <p className="text-xs sm:text-sm font-medium text-brand">
+                              Extra fruit charges:
+                              {` +$${(
+                                Math.max(0, selectedFruits.length - FALLBACK_FRUIT_INCLUDED_SELECTIONS) *
+                                FALLBACK_FRUIT_EXTRA_SELECTION_PRICE
+                              ).toFixed(2)}`}
+                            </p>
+                          )}
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                           {FALLBACK_FRUIT_OPTIONS.map((fruit) => {
                             const isSelected = selectedFruits.includes(fruit.id)
-                            const isDisabled = !isSelected && selectedFruits.length >= 3
                             return (
                               <button
                                 key={fruit.id}
                                 onClick={() => handleFruitToggle(fruit.id)}
-                                disabled={isDisabled}
                                 className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
                                   isSelected
                                     ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
-                                    : isDisabled
-                                      ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                                      : "border-border hover:border-brand/50 hover:bg-muted/50"
+                                    : "border-border hover:border-brand/50 hover:bg-muted/50"
                                 }`}
                               >
                                 <span className="text-base sm:text-lg font-semibold">{fruit.name}</span>
@@ -810,6 +853,7 @@ export default function ProductDetailPage() {
                               </button>
                             )
                           })}
+                        </div>
                         </div>
                       )}
                       {currentStep === 4 && (
@@ -843,23 +887,49 @@ export default function ProductDetailPage() {
                       if (!step) return null
                       const choices = step.choices || []
                       return (
+                        <div className="space-y-2">
+                          {(() => {
+                            const selected = selectedOptions.get(step.optionId) || []
+                            const pick3Step =
+                              step.title.toLowerCase().includes("pick 3") || step.title.toLowerCase().includes("3 fruits")
+                            if (!pick3Step) return null
+                            const included =
+                              typeof step.maxIncludedSelections === "number"
+                                ? step.maxIncludedSelections
+                                : 3
+                            const extra = FALLBACK_FRUIT_EXTRA_SELECTION_PRICE
+                            if (extra <= 0) return null
+                            const extraCount = Math.max(0, selected.length - included)
+                            return (
+                              <div className="text-xs sm:text-sm text-muted-foreground">
+                                First {included} selections included. Each extra selection +${extra.toFixed(2)}.
+                                {extraCount > 0 ? (
+                                  <span className="ml-2 font-medium text-brand">
+                                    Extra charges: +${(extraCount * extra).toFixed(2)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            )
+                          })()}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                           {choices.map((choice) => {
                             const selected = selectedOptions.get(step.optionId) || []
                             const isSelected = selected.includes(choice.id)
                             const pick3Step = step.title.toLowerCase().includes("pick 3") || step.title.toLowerCase().includes("3 fruits")
-                            const isDisabled = pick3Step && !isSelected && selected.length >= 3
+                            const selectedIndex = selected.indexOf(choice.id)
+                            const included =
+                              typeof step.maxIncludedSelections === "number" ? step.maxIncludedSelections : 3
+                            const extra = Number(step.extraSelectionPrice ?? 0)
+                            const extraForThisSelection =
+                              pick3Step && isSelected && extra > 0 && selectedIndex >= included
                             return (
                               <button
                                 key={choice.id}
                                 onClick={() => handleOptionChange(step.optionId, choice.id, step.type === "multiple")}
-                                disabled={isDisabled}
                                 className={`p-3 sm:p-4 rounded-lg border-2 text-left transition-all ${
                                   isSelected
                                     ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
-                                    : isDisabled
-                                      ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                                      : "border-border hover:border-brand/50 hover:bg-muted/50"
+                                    : "border-border hover:border-brand/50 hover:bg-muted/50"
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-2">
@@ -868,9 +938,13 @@ export default function ProductDetailPage() {
                                     <span className="text-xs sm:text-sm text-muted-foreground">+${choice.priceModifier.toFixed(2)}</span>
                                   )}
                                 </div>
+                                {extraForThisSelection ? (
+                                  <div className="mt-1 text-xs text-brand">Extra selection fee +${extra.toFixed(2)}</div>
+                                ) : null}
                               </button>
                             )
                           })}
+                        </div>
                         </div>
                       )
                     })()
@@ -971,35 +1045,73 @@ export default function ProductDetailPage() {
                               </div>
                             </RadioGroup>
                           ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-2">
-                              {option.choices?.map((choice) => (
-                                <div
-                                  key={choice.id}
-                                  className={`flex items-center justify-between p-2 sm:p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                                    selected.includes(choice.id)
-                                      ? "border-brand bg-brand/10"
-                                      : "border-border hover:border-brand/50 bg-background"
-                                  }`}
-                                  onClick={() => handleOptionChange(option.id, choice.id, true)}
-                                >
-                                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                                    <Checkbox
-                                      id={choice.id}
-                                      checked={selected.includes(choice.id)}
-                                      onCheckedChange={() => handleOptionChange(option.id, choice.id, true)}
-                                    />
-                                    <Label htmlFor={choice.id} className="font-normal text-sm sm:text-base cursor-pointer flex-1">
-                                      {choice.choice_name}
-                                    </Label>
-                                  </div>
-                                  {choice.price_modifier > 0 && (
-                                    <span className="text-xs sm:text-sm font-semibold text-brand whitespace-nowrap ml-2">
-                                      +${choice.price_modifier.toFixed(2)}
-                                    </span>
-                                  )}
+                            isPick3FruitsOption(option.option_name) ? (
+                              <div className="space-y-2 mt-2">
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  First 3 fruits included. Each extra fruit +$1.00.
+                                </p>
+                                {Math.max(0, selected.length - 3) > 0 ? (
+                                  <p className="text-xs sm:text-sm font-medium text-brand">
+                                    Extra fruit charges: +${(Math.max(0, selected.length - 3) * 1).toFixed(2)}
+                                  </p>
+                                ) : null}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                                  {option.choices?.map((choice) => {
+                                    const isSelected = selected.includes(choice.id)
+                                    const selectedIndex = selected.indexOf(choice.id)
+                                    const extraForThisSelection = isSelected && selectedIndex >= 3
+                                    return (
+                                      <button
+                                        key={choice.id}
+                                        type="button"
+                                        className={`p-3 sm:p-4 rounded-lg border-2 text-center transition-all ${
+                                          isSelected
+                                            ? "border-brand bg-brand/10 dark:bg-brand/15 shadow-md"
+                                            : "border-border hover:border-brand/50 hover:bg-muted/50"
+                                        }`}
+                                        onClick={() => handleOptionChange(option.id, choice.id, true)}
+                                      >
+                                        <span className="text-base sm:text-lg font-semibold">{choice.choice_name}</span>
+                                        {isSelected ? <div className="mt-1 text-brand text-sm">✓ Selected</div> : null}
+                                        {extraForThisSelection ? (
+                                          <div className="mt-0.5 text-xs text-brand">+$1.00 extra</div>
+                                        ) : null}
+                                      </button>
+                                    )
+                                  })}
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-2">
+                                {option.choices?.map((choice) => (
+                                  <div
+                                    key={choice.id}
+                                    className={`flex items-center justify-between p-2 sm:p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                                      selected.includes(choice.id)
+                                        ? "border-brand bg-brand/10"
+                                        : "border-border hover:border-brand/50 bg-background"
+                                    }`}
+                                    onClick={() => handleOptionChange(option.id, choice.id, true)}
+                                  >
+                                    <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                                      <Checkbox
+                                        id={choice.id}
+                                        checked={selected.includes(choice.id)}
+                                        onCheckedChange={() => handleOptionChange(option.id, choice.id, true)}
+                                      />
+                                      <Label htmlFor={choice.id} className="font-normal text-sm sm:text-base cursor-pointer flex-1">
+                                        {choice.choice_name}
+                                      </Label>
+                                    </div>
+                                    {choice.price_modifier > 0 && (
+                                      <span className="text-xs sm:text-sm font-semibold text-brand whitespace-nowrap ml-2">
+                                        +${choice.price_modifier.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )
                           )}
                         </div>
                       )

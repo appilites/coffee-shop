@@ -196,8 +196,12 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
   // Handle add to cart - check if item has customizations from database
   const handleAddToCart = async (item: MenuItem) => {
     if (isPowerBowlItem(item)) {
-      // Open Power Bowl multi-step customization dialog
-      setPowerBowlItem(item)
+      // Prefer API variations (single source of truth); legacy dialog only if JSON is empty
+      if (Array.isArray(item.variations) && item.variations.length > 0) {
+        setCustomizeItem(item)
+      } else {
+        setPowerBowlItem(item)
+      }
     } else if (isLoadedTeaItem(item)) {
       setAddingItemId(item.id)
       try {
@@ -655,10 +659,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
     setTimeout(() => {
       isScrollingRef.current = false
     }, 3000)
-  }
-
-  const getItemCustomizations = (itemId: string) => {
-    return menuData.customizations.filter((c) => c.menu_item_id === itemId)
   }
 
   const getCategoryStyle = (categoryName: string) => {
@@ -1372,7 +1372,6 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
         return (
           <CustomizeDialog
             item={customizeItem}
-            customizations={getItemCustomizations(customizeItem.id)}
             categoryName={categoryName}
             menuItems={menuData.menuItems}
             open={!!customizeItem}
