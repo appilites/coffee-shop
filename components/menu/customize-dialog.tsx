@@ -171,7 +171,7 @@ export default function CustomizeDialog({ item, categoryName, menuItems = [], op
           const comboMenuItem = comboItem.menu_item || menuItems.find(m => m.id === comboItem.menu_item_id)
           if (comboMenuItem) {
             let itemPrice = comboMenuItem.base_price || 0
-            if (combo.combo_price !== null) {
+            if (combo.combo_price !== null && combo.items) {
               itemPrice = combo.combo_price / combo.items.length
             } else if (combo.discount_type === "percentage" && combo.discount_value) {
               itemPrice = itemPrice * (1 - combo.discount_value / 100)
@@ -254,7 +254,7 @@ export default function CustomizeDialog({ item, categoryName, menuItems = [], op
           const comboMenuItem = comboItem.menu_item || menuItems.find((m) => m.id === comboItem.menu_item_id)
           if (comboMenuItem) {
             let itemPrice = comboMenuItem.base_price || 0
-            if (combo.combo_price !== null) {
+            if (combo.combo_price !== null && combo.items) {
               itemPrice = combo.combo_price / combo.items.length
             } else if (combo.discount_type === "percentage" && combo.discount_value) {
               itemPrice = itemPrice * (1 - combo.discount_value / 100)

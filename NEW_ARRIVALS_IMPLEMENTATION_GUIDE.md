@@ -1,7 +1,100 @@
-# New Arrivals Management System - Implementation Guide
+# New Arrivals Management System - Simplified Implementation
 
 ## Overview
-This guide provides step-by-step instructions to implement New Arrivals section in your admin dashboard with complete image upload functionality.
+This system provides a complete New Arrivals management solution with local file upload to Supabase Storage and real-time database integration.
+
+## Key Features
+- ✅ **File Upload Only**: No URL input option - only local file uploads
+- ✅ **Supabase Storage**: Images stored in Supabase Storage bucket
+- ✅ **Database Integration**: All data saved to database
+- ✅ **Real-time Updates**: Changes reflect immediately on coffee shop
+- ✅ **Admin Interface**: Simple admin page for CRUD operations
+
+## Quick Setup Steps
+
+### 1. Create Supabase Storage Bucket
+1. Go to **Supabase Dashboard** → **Storage**
+2. Create bucket: `new-arrivals-images` (make it **Public**)
+3. Run the SQL from `supabase-storage-setup.sql`
+
+### 2. Create Database Table
+Run the SQL from `new-arrivals-table.sql` in Supabase SQL Editor
+
+### 3. Access Admin Interface
+Visit: `http://localhost:3000/admin-new-arrivals`
+
+## Files Created
+
+### Components
+- `components/ui/file-upload.tsx` - File upload component (no URL option)
+- `components/new-arrivals-form.tsx` - Create/Edit form
+- `components/new-arrivals-section.tsx` - Coffee shop display (updated with real-time refresh)
+
+### API Routes
+- `app/api/upload/route.ts` - Handle file uploads to Supabase Storage
+- `app/api/new-arrivals/route.ts` - GET (active items) & POST (create)
+- `app/api/new-arrivals/[id]/route.ts` - GET, PUT, DELETE individual items
+- `app/api/new-arrivals-admin/route.ts` - GET all items (including inactive)
+
+### Admin Page
+- `app/admin-new-arrivals/page.tsx` - Complete admin interface
+
+## How It Works
+
+### Coffee Shop Side
+1. **Real-time Display**: `NewArrivalsSection` component fetches from database every 30 seconds
+2. **Fallback Support**: Shows default images if database is unavailable
+3. **Automatic Updates**: Any changes in admin reflect on coffee shop
+
+### Admin Side
+1. **File Upload**: Drag & drop or click to upload images
+2. **Supabase Storage**: Images uploaded to `new-arrivals-images` bucket
+3. **Database Save**: All data (including image URLs) saved to `new_arrivals` table
+4. **CRUD Operations**: Create, Read, Update, Delete functionality
+5. **Image Cleanup**: Deleting items also removes images from storage
+
+## Usage Instructions
+
+### For Admin Users
+1. Visit `/admin-new-arrivals`
+2. Click "Add New Arrival"
+3. Fill form and upload image
+4. Save - changes appear immediately on coffee shop
+
+### For Coffee Shop
+- New Arrivals section automatically shows active items from database
+- Updates every 30 seconds
+- Falls back to static images if database unavailable
+
+## Environment Variables Required
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+## Database Schema
+```sql
+CREATE TABLE new_arrivals (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  image_url TEXT,
+  button_text TEXT DEFAULT 'Try Now',
+  redirect_link TEXT,
+  is_active BOOLEAN DEFAULT true,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Storage Bucket
+- **Name**: `new-arrivals-images`
+- **Public**: Yes
+- **Policies**: Read (public), Write/Update/Delete (authenticated)
+
+This simplified system removes the URL input complexity and focuses on a clean file upload experience with full database integration.
 
 ## Database Setup
 

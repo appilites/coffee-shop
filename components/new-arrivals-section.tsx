@@ -24,6 +24,10 @@ export function NewArrivalsSection() {
 
   useEffect(() => {
     fetchNewArrivals()
+    
+    // Set up real-time updates
+    const interval = setInterval(fetchNewArrivals, 30000) // Refresh every 30 seconds
+    return () => clearInterval(interval)
   }, [])
 
   const fetchNewArrivals = async () => {

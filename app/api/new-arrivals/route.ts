@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -64,5 +64,49 @@ export async function GET() {
     ]
     
     return NextResponse.json(fallbackData)
+  }
+}
+
+// POST - Create new arrival
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    // Validate required fields
+    if (!body.title || !body.buttonText) {
+      return NextResponse.json(
+        { error: "Title and button text are required" },
+        { status: 400 }
+      )
+    }
+
+    const insertData = {
+      title: body.title,
+      description: body.description || null,
+      image_url: body.imageUrl || null,
+      button_text: body.buttonText,
+      redirect_link: body.redirectLink || null,
+      is_active: body.isActive !== undefined ? body.isActive : true,
+      display_order: body.displayOrder || 0
+    }
+
+    const { data, error } = await supabase
+      .from('new_arrivals')
+      .insert(insertData)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Supabase insert error:', error)
+      throw error
+    }
+
+    return NextResponse.json(data, { status: 201 })
+  } catch (error) {
+    console.error('Error creating new arrival:', error)
+    return NextResponse.json(
+      { error: "Failed to create new arrival" }, 
+      { status: 500 }
+    )
   }
 }
