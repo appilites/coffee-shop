@@ -9,13 +9,14 @@ const supabase = createClient(
 // GET - Get single new arrival
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { data, error } = await supabase
       .from('new_arrivals')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
     
     if (error) {
@@ -36,9 +37,10 @@ export async function GET(
 // PUT - Update new arrival
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     const updateData: any = {}
@@ -55,7 +57,7 @@ export async function PUT(
     const { data, error } = await supabase
       .from('new_arrivals')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
     
@@ -77,21 +79,23 @@ export async function PUT(
 // DELETE - Delete new arrival
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
+    
     // First get the item to check if it has an image to delete
     const { data: item } = await supabase
       .from('new_arrivals')
       .select('image_url')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     // Delete the database record
     const { error } = await supabase
       .from('new_arrivals')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
     
     if (error) {
       console.error('Supabase delete error:', error)

@@ -8,16 +8,16 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/hooks/use-toast"
 import { FileUpload } from "@/components/ui/file-upload"
 
 interface NewArrival {
   id?: string
   title: string
-  description: string
-  image_url: string
+  description: string | null
+  image_url: string | null
   button_text: string
-  redirect_link: string
+  redirect_link: string | null
   is_active: boolean
   display_order: number
 }
@@ -63,11 +63,18 @@ export function NewArrivalsForm({ initialData, onSuccess, onCancel }: NewArrival
         throw new Error(errorData.error || 'Failed to save')
       }
 
-      toast.success(initialData?.id ? 'New arrival updated successfully' : 'New arrival created successfully')
+      toast({
+        title: "Success",
+        description: initialData?.id ? 'New arrival updated successfully' : 'New arrival created successfully',
+      })
       onSuccess?.()
     } catch (error) {
       console.error('Error saving new arrival:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to save new arrival')
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to save new arrival',
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }

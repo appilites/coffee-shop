@@ -3,7 +3,7 @@
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload, X, Loader2, Image as ImageIcon } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/hooks/use-toast"
 
 interface FileUploadProps {
   value?: string
@@ -24,14 +24,22 @@ export function FileUpload({ value, onChange, onFileNameChange }: FileUploadProp
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.')
+      toast({
+        title: "Error",
+        description: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.',
+        variant: "destructive",
+      })
       return
     }
 
     // Validate file size (max 5MB)
     const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
-      toast.error('File too large. Maximum size is 5MB.')
+      toast({
+        title: "Error",
+        description: 'File too large. Maximum size is 5MB.',
+        variant: "destructive",
+      })
       return
     }
 
@@ -65,11 +73,18 @@ export function FileUpload({ value, onChange, onFileNameChange }: FileUploadProp
       setFileName(result.fileName)
       onFileNameChange?.(result.fileName)
       
-      toast.success('Image uploaded successfully!')
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully!",
+      })
 
     } catch (error) {
       console.error('Upload error:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to upload image')
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to upload image',
+        variant: "destructive",
+      })
       setPreview(null)
     } finally {
       setUploading(false)

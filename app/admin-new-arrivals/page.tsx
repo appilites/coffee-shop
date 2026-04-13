@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from "@/hooks/use-toast"
 import { NewArrivalsForm } from "@/components/new-arrivals-form"
 
 interface NewArrival {
@@ -46,7 +46,11 @@ export default function AdminNewArrivalsPage() {
       setNewArrivals(data)
     } catch (error) {
       console.error('Error fetching new arrivals:', error)
-      toast.error('Failed to load new arrivals')
+      toast({
+        title: "Error",
+        description: 'Failed to load new arrivals',
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -62,11 +66,18 @@ export default function AdminNewArrivalsPage() {
       
       if (!response.ok) throw new Error('Failed to delete')
       
-      toast.success('New arrival deleted successfully')
+      toast({
+        title: "Success",
+        description: 'New arrival deleted successfully',
+      })
       fetchNewArrivals()
     } catch (error) {
       console.error('Error deleting new arrival:', error)
-      toast.error('Failed to delete new arrival')
+      toast({
+        title: "Error",
+        description: 'Failed to delete new arrival',
+        variant: "destructive",
+      })
     }
   }
 
