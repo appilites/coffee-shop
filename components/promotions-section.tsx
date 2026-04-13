@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { Loader2, Tag } from "lucide-react"
+import { Loader2, Tag, ChevronLeft, ChevronRight } from "lucide-react"
 import type { ShopPromotion } from "@/lib/promotions"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -13,6 +13,9 @@ export function PromotionsSection() {
   const router = useRouter()
   const [items, setItems] = useState<ShopPromotion[]>([])
   const [loading, setLoading] = useState(true)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -33,6 +36,33 @@ export function PromotionsSection() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    checkScrollButtons()
+  }, [items])
+
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1)
+    }
+  }
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const containerWidth = scrollContainerRef.current.clientWidth
+      const scrollAmount = containerWidth // Scroll by full container width to show next 3 cards
+      const newScrollLeft = direction === 'left' 
+        ? scrollContainerRef.current.scrollLeft - scrollAmount
+        : scrollContainerRef.current.scrollLeft + scrollAmount
+      
+      scrollContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      })
+    }
+  }
 
   const onActivate = useCallback(
     (p: ShopPromotion) => {
@@ -66,6 +96,8 @@ export function PromotionsSection() {
     return null
   }
 
+  const showSlider = items.length > 3
+
   return (
     <section className="border-t border-border/40 bg-[#181511] pt-4 pb-8 sm:pt-6 sm:pb-10 md:pb-12">
       <div className="container mx-auto px-2 sm:px-3 md:px-4">
@@ -77,12 +109,76 @@ export function PromotionsSection() {
           <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Promotions</h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-          {items.map((p) => (
-            <PromotionCard key={p.id} promotion={p} onActivate={() => onActivate(p)} />
-          ))}
+        <div className="relative">
+          {/* Scroll Buttons */}
+          {showSlider && (
+            <>
+              <Button
+                variant="outline"
+                size="icon"
+                className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm ${
+                  !canScrollLeft ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                onClick={() => scroll('left')}
+                disabled={!canScrollLeft}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm ${
+                  !canScrollRight ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                onClick={() => scroll('right')}
+                disabled={!canScrollRight}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+
+          {/* Cards Container */}
+          <div
+            ref={scrollContainerRef}
+            className={`${
+              showSlider 
+                ? 'flex gap-4 overflow-x-auto scrollbar-hide pb-4' 
+                : 'grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'
+            }`}
+            onScroll={checkScrollButtons}
+            style={showSlider ? { 
+              scrollbarWidth: 'none', 
+              msOverflowStyle: 'none',
+              scrollSnapType: 'x mandatory'
+            } : {}}
+          >
+            {items.map((p) => (
+              <div 
+                key={p.id} 
+                className={showSlider ? 'flex-shrink-0 w-[calc(33.333%-0.75rem)] scroll-snap-align-start' : ''}
+                style={showSlider ? {
+                  minWidth: 'calc(33.333% - 0.75rem)',
+                  maxWidth: 'calc(33.333% - 0.75rem)'
+                } : {}}
+              >
+                <PromotionCard promotion={p} onActivate={() => onActivate(p)} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Hide scrollbar CSS */}
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </section>
   )
 }

@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface NewArrival {
   id: string
@@ -21,6 +21,9 @@ export function NewArrivalsSection() {
   const [newArrivals, setNewArrivals] = useState<NewArrival[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchNewArrivals()
@@ -29,6 +32,10 @@ export function NewArrivalsSection() {
     const interval = setInterval(fetchNewArrivals, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    checkScrollButtons()
+  }, [newArrivals])
 
   const fetchNewArrivals = async () => {
     try {
@@ -87,6 +94,29 @@ export function NewArrivalsSection() {
     }
   }
 
+  const checkScrollButtons = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1)
+    }
+  }
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      const containerWidth = scrollContainerRef.current.clientWidth
+      const scrollAmount = containerWidth // Scroll by full container width to show next 3 cards
+      const newScrollLeft = direction === 'left' 
+        ? scrollContainerRef.current.scrollLeft - scrollAmount
+        : scrollContainerRef.current.scrollLeft + scrollAmount
+      
+      scrollContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      })
+    }
+  }
+
   if (loading) {
     return (
       <section className="container mx-auto px-2 sm:px-3 md:px-4 pt-3 sm:pt-4 md:pt-6 lg:pt-8 pb-6 sm:pb-8 md:pb-12 lg:pb-16" style={{ backgroundColor: '#181511' }}>
@@ -101,6 +131,8 @@ export function NewArrivalsSection() {
     return null // Don't show section if no active arrivals
   }
 
+  const showSlider = newArrivals.length > 3
+
   return (
     <section className="container mx-auto px-2 sm:px-3 md:px-4 pt-3 sm:pt-4 md:pt-6 lg:pt-8 pb-6 sm:pb-8 md:pb-12 lg:pb-16" style={{ backgroundColor: '#181511' }}>
       <div className="mb-5 sm:mb-6 md:mb-8 lg:mb-12 text-center px-2">
@@ -110,43 +142,96 @@ export function NewArrivalsSection() {
         </p>
       </div>
 
-      <div className="grid gap-2.5 sm:gap-3 md:gap-4 lg:gap-6 md:grid-cols-3">
-        {newArrivals.map((item) => (
-          <Card key={item.id} className="group overflow-hidden transition-all hover:shadow-xl">
-            <div className="aspect-video relative overflow-hidden">
-              <img
-                src={item.image_url || '/newarrival.jfif'}
-                alt={item.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                onError={(e) => {
-                  // Fallback to default image if image fails to load
-                  e.currentTarget.src = '/newarrival.jfif'
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-            </div>
-            <div className="p-3 sm:p-4 md:p-5 lg:p-6">
-              <h3 className="font-serif text-lg sm:text-xl md:text-2xl font-bold text-foreground mb-1.5 sm:mb-2">
-                {item.title}
-              </h3>
-              {item.description && (
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 leading-relaxed">
-                  {item.description}
-                </p>
-              )}
-              {item.redirect_link && (
-                <Link href={item.redirect_link} className="cursor-pointer">
-                  <Button
-                    variant="outline"
-                    className="w-full min-h-[44px] hover:gradient-copper-gold hover:text-white"
-                  >
-                    {item.button_text}
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </Card>
-        ))}
+      <div className="relative">
+        {/* Scroll Buttons */}
+        {showSlider && (
+          <>
+            <Button
+              variant="outline"
+              size="icon"
+              className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm ${
+                !canScrollLeft ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              onClick={() => scroll('left')}
+              disabled={!canScrollLeft}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 backdrop-blur-sm ${
+                !canScrollRight ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              onClick={() => scroll('right')}
+              disabled={!canScrollRight}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+
+        {/* Cards Container */}
+        <div
+          ref={scrollContainerRef}
+          className={`${
+            showSlider 
+              ? 'flex gap-4 overflow-x-auto scrollbar-hide pb-4' 
+              : 'grid gap-2.5 sm:gap-3 md:gap-4 lg:gap-6 md:grid-cols-3'
+          }`}
+          onScroll={checkScrollButtons}
+          style={showSlider ? { 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none',
+            scrollSnapType: 'x mandatory'
+          } : {}}
+        >
+          {newArrivals.map((item, index) => (
+            <Card 
+              key={item.id} 
+              className={`group overflow-hidden transition-all hover:shadow-xl ${
+                showSlider ? 'flex-shrink-0 w-[calc(33.333%-0.75rem)] scroll-snap-align-start' : ''
+              }`}
+              style={showSlider ? {
+                minWidth: 'calc(33.333% - 0.75rem)',
+                maxWidth: 'calc(33.333% - 0.75rem)'
+              } : {}}
+            >
+              <div className="aspect-video relative overflow-hidden">
+                <img
+                  src={item.image_url || '/newarrival.jfif'}
+                  alt={item.title}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                  onError={(e) => {
+                    // Fallback to default image if image fails to load
+                    e.currentTarget.src = '/newarrival.jfif'
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              </div>
+              <div className="p-3 sm:p-4 md:p-5 lg:p-6">
+                <h3 className="font-serif text-lg sm:text-xl md:text-2xl font-bold text-foreground mb-1.5 sm:mb-2">
+                  {item.title}
+                </h3>
+                {item.description && (
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 leading-relaxed">
+                    {item.description}
+                  </p>
+                )}
+                {item.redirect_link && (
+                  <Link href={item.redirect_link} className="cursor-pointer">
+                    <Button
+                      variant="outline"
+                      className="w-full min-h-[44px] hover:gradient-copper-gold hover:text-white"
+                    >
+                      Try Now
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {error && (
@@ -156,6 +241,17 @@ export function NewArrivalsSection() {
           </p>
         </div>
       )}
+
+      {/* Hide scrollbar CSS */}
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </section>
   )
 }

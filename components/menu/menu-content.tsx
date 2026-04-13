@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import type { MenuItem, MenuCategory, CustomizationOption, CustomizationChoice } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -61,6 +61,7 @@ const ADD_TO_CART_FEEDBACK_MS = 450
 
 export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { getItemCount, getTotal, addItem } = useCart()
   const categoryFromUrl = searchParams?.get("category")
   // IMPORTANT: Always start with null to show ALL items by default (no filter)
@@ -596,6 +597,18 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
     isScrollingRef.current = true
     setHighlightedCategory(null) // Clear highlight when clicking
     setCategoriesExpanded(false) // Collapse categories when user selects
+    
+    // Update URL with category parameter
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    if (categoryId) {
+      params.set('category', categoryId)
+    } else {
+      params.delete('category')
+    }
+    
+    // Update URL without page reload
+    const newUrl = params.toString() ? `/menu?${params.toString()}` : '/menu'
+    router.push(newUrl)
     
     // Immediately scroll the category tab to the left edge (works for all tabs including "All Items")
     requestAnimationFrame(() => {
