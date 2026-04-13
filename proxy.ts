@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request,
   })
@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
     return response
   } catch (err) {
-    console.error("[middleware] auth:", err)
+    console.error("[proxy] auth:", err)
     return NextResponse.next({
       request,
     })
