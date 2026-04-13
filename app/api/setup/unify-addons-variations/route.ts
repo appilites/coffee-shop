@@ -8,6 +8,8 @@ import {
 } from "@/lib/unified-addons-category-scope"
 import { UNIFIED_ADDONS_VARIATION_ID } from "@/lib/unified-drink-shake-addons"
 
+export const dynamic = "force-dynamic"
+
 function hasServiceRoleKey(): boolean {
   return Boolean(
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY,

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/server"
 import { MENU_ITEMS_LOYALTY_COLUMNS_SQL as SETUP_SQL } from "@/lib/sql/menu-items-loyalty-columns"
 
+export const dynamic = "force-dynamic"
+
 function normalizeCategory(cat: unknown): { id: string; name: string } | null {
   if (!cat) return null
   if (Array.isArray(cat)) {

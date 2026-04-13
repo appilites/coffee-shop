@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/server"
 
+export const dynamic = "force-dynamic"
+
 /**
  * Customer-facing order read (same DB as admin dashboard).
  * Uses service role so guests can track by order ID link without broad RLS on anon.

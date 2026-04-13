@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/server"
 import { MENU_ITEMS_LOYALTY_COLUMNS_SQL as SQL } from "@/lib/sql/menu-items-loyalty-columns"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   try {
     const supabase = getSupabaseAdminClient()

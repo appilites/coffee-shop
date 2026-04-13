@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient, getSupabaseAdminClient } from "@/lib/supabase/server"
 
+export const dynamic = "force-dynamic"
+
 // Redeem: legacy `rewards` table OR menu_items with loyalty_points_cost (menuItemId)
 export async function POST(req: NextRequest) {
   try {

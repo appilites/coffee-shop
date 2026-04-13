@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Service role key for server-side operations
-)
+export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return NextResponse.json(
+      { error: "Supabase configuration missing" }, 
+      { status: 500 }
+    )
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -37,14 +45,14 @@ export async function POST(request: NextRequest) {
     const fileExtension = file.name.split('.').pop()
     const fileName = `new-arrival-${timestamp}-${randomString}.${fileExtension}`
 
-    // Convert file to buffer
+    // Convert file to ArrayBuffer (edge runtime compatible)
     const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const uint8Array = new Uint8Array(bytes)
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
       .from('new-arrivals-images')
-      .upload(fileName, buffer, {
+      .upload(fileName, uint8Array, {
         contentType: file.type,
         cacheControl: '3600',
         upsert: false
@@ -78,6 +86,17 @@ export async function POST(request: NextRequest) {
 
 // DELETE method for removing images
 export async function DELETE(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return NextResponse.json(
+      { error: "Supabase configuration missing" }, 
+      { status: 500 }
+    )
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
   try {
     const { searchParams } = new URL(request.url)
     const fileName = searchParams.get('fileName')

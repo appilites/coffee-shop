@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseAdminClient } from "@/lib/supabase/server"
 
+export const dynamic = "force-dynamic"
+
 type LineItem = { menu_item_id: string; quantity: number }
 
 /** Sum loyalty_points_earn × quantity for cart / order lines (guest checkout). */

@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { getDefaultVariationsForProduct } from "@/lib/default-product-variations"
 
+export const dynamic = "force-dynamic"
+
 /** Product shape from your products API response */
 interface ApiProduct {
   id: string
