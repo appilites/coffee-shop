@@ -56,7 +56,7 @@ const apothecaryItems: ApothecaryItem[] = [
 
 export function ApothecarySection() {
   return (
-    <section className="py-16 px-4" style={{ backgroundColor: '#0a0a0a' }}>
+    <section className="py-16 px-4 pb-24" style={{ backgroundColor: '#0a0a0a' }}>
       <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
