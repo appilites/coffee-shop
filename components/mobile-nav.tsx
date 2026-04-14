@@ -4,11 +4,18 @@ import { usePathname, useRouter } from "next/navigation"
 import { Home, ShoppingCart, MapPin, Gift } from "lucide-react"
 import { useCart } from "@/lib/context/cart-context"
 import { CartSlideMenu } from "@/components/cart-slide-menu"
+import { useEffect, useState } from "react"
 
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
   const { items } = useCart()
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Prevent hydration mismatch by only rendering after client mount
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -28,6 +35,11 @@ export function MobileNav() {
     pathname === "/signup" ||
     pathname?.startsWith("/auth/")
   ) {
+    return null
+  }
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!isMounted) {
     return null
   }
 

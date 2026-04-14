@@ -9,6 +9,7 @@ import { TrackOrderDialog } from "@/components/track-order-dialog"
 import { LoyaltyPointsDisplay } from "@/components/loyalty-points-display"
 import { PromotionsSection } from "@/components/promotions-section"
 import { NewArrivalsSection } from "@/components/new-arrivals-section"
+import { ApothecarySection } from "@/components/apothecary-section"
 import { useState } from "react"
 
 export default function HomePage() {
@@ -229,6 +230,9 @@ export default function HomePage() {
 
       {/* New Arrivals - Dynamic from Database */}
       <NewArrivalsSection />
+
+      {/* Apothecary Section - Curated Selection */}
+      <ApothecarySection />
 
 
       {/* Track Order Dialog */}

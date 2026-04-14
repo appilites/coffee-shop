@@ -10,12 +10,61 @@ interface NewArrival {
   id: string
   title: string
   description: string | null
-  image_url: string | null
-  button_text: string
-  redirect_link: string | null
-  is_active: boolean
-  display_order: number
+  imageUrl: string | null
+  buttonText: string
+  redirectLink: string | null
+  displayOrder: number
 }
+
+interface ApiResponse {
+  success: boolean
+  data: NewArrival[]
+  count: number
+}
+
+// Cache class for performance
+class NewArrivalsCache {
+  private cache: NewArrival[] | null = null
+  private lastFetch = 0
+  private cacheTime = 5 * 60 * 1000 // 5 minutes
+
+  async getArrivals(): Promise<NewArrival[]> {
+    const now = Date.now()
+    if (this.cache && (now - this.lastFetch) < this.cacheTime) {
+      return this.cache
+    }
+
+    try {
+      const response = await fetch('/api/public/new-arrivals', { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data: ApiResponse = await response.json()
+      
+      if (data.success) {
+        this.cache = data.data
+        this.lastFetch = now
+        return this.cache
+      } else {
+        throw new Error('API returned unsuccessful response')
+      }
+    } catch (error) {
+      console.error('Failed to fetch new arrivals:', error)
+      // Return cached data if available
+      return this.cache || []
+    }
+  }
+}
+
+// Global cache instance
+const arrivalsCache = new NewArrivalsCache()
 
 export function NewArrivalsSection() {
   const [newArrivals, setNewArrivals] = useState<NewArrival[]>([])
@@ -40,53 +89,43 @@ export function NewArrivalsSection() {
   const fetchNewArrivals = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/new-arrivals')
+      setError(null)
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch new arrivals')
-      }
+      const arrivals = await arrivalsCache.getArrivals()
+      setNewArrivals(arrivals)
       
-      const data = await response.json()
-      // Filter only active items and sort by display order
-      const activeArrivals = data
-        .filter((item: NewArrival) => item.is_active)
-        .sort((a: NewArrival, b: NewArrival) => a.display_order - b.display_order)
-      
-      setNewArrivals(activeArrivals)
     } catch (error) {
       console.error('Error fetching new arrivals:', error)
       setError('Failed to load new arrivals')
+      
       // Fallback to static data if API fails
       setNewArrivals([
         {
           id: '1',
           title: 'Protein Waffles',
           description: 'Build your own protein-packed waffle with your favorite toppings',
-          image_url: '/newarrival.jfif',
-          button_text: 'Try Now',
-          redirect_link: '/menu?category=cat-17',
-          is_active: true,
-          display_order: 1
+          imageUrl: '/newarrival.jfif',
+          buttonText: 'Try Now',
+          redirectLink: '/menu?category=cat-17',
+          displayOrder: 1
         },
         {
           id: '2',
           title: 'Oat Milk Chai Tea Latte',
           description: 'Slow sips, sweet moments. Protein-packed chai tea latte with oat milk',
-          image_url: '/newarrival1.jfif',
-          button_text: 'Try Now',
-          redirect_link: '/menu?category=cat-16',
-          is_active: true,
-          display_order: 2
+          imageUrl: '/newarrival1.jfif',
+          buttonText: 'Try Now',
+          redirectLink: '/menu?category=cat-16',
+          displayOrder: 2
         },
         {
           id: '3',
           title: 'Specialty Drinks',
           description: 'Explore our premium specialty drink collection with unique flavors',
-          image_url: '/newarrival2.jfif',
-          button_text: 'Try Now',
-          redirect_link: '/menu?category=cat-10',
-          is_active: true,
-          display_order: 3
+          imageUrl: '/newarrival2.jfif',
+          buttonText: 'Try Now',
+          redirectLink: '/menu?category=cat-10',
+          displayOrder: 3
         }
       ])
     } finally {
@@ -122,6 +161,7 @@ export function NewArrivalsSection() {
       <section className="container mx-auto px-2 sm:px-3 md:px-4 pt-3 sm:pt-4 md:pt-6 lg:pt-8 pb-6 sm:pb-8 md:pb-12 lg:pb-16" style={{ backgroundColor: '#181511' }}>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+          <span className="ml-2 text-foreground">Loading new arrivals...</span>
         </div>
       </section>
     )
@@ -136,7 +176,7 @@ export function NewArrivalsSection() {
   return (
     <section className="container mx-auto px-2 sm:px-3 md:px-4 pt-3 sm:pt-4 md:pt-6 lg:pt-8 pb-6 sm:pb-8 md:pb-12 lg:pb-16" style={{ backgroundColor: '#181511' }}>
       <div className="mb-5 sm:mb-6 md:mb-8 lg:mb-12 text-center px-2">
-        <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground">New Arrivals</h2>
+        <h2 className="text-3xl font-bold text-center mb-8 text-foreground">New Arrivals</h2>
         <p className="mt-1.5 sm:mt-2 md:mt-3 text-xs sm:text-sm md:text-base text-muted-foreground">
           Discover our latest additions to the menu
         </p>
@@ -199,7 +239,7 @@ export function NewArrivalsSection() {
             >
               <div className="aspect-video relative overflow-hidden">
                 <img
-                  src={item.image_url || '/newarrival.jfif'}
+                  src={item.imageUrl || '/newarrival.jfif'}
                   alt={item.title}
                   className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
                   onError={(e) => {
@@ -218,13 +258,13 @@ export function NewArrivalsSection() {
                     {item.description}
                   </p>
                 )}
-                {item.redirect_link && (
-                  <Link href={item.redirect_link} className="cursor-pointer">
+                {item.redirectLink && (
+                  <Link href={item.redirectLink} className="cursor-pointer">
                     <Button
                       variant="outline"
                       className="w-full min-h-[44px] hover:gradient-copper-gold hover:text-white"
                     >
-                      Try Now
+                      {item.buttonText}
                     </Button>
                   </Link>
                 )}
@@ -237,7 +277,7 @@ export function NewArrivalsSection() {
       {error && (
         <div className="text-center mt-4">
           <p className="text-sm text-muted-foreground">
-            {error} - Showing default content
+            {error} - Showing fallback content
           </p>
         </div>
       )}

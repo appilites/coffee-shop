@@ -21,9 +21,15 @@ interface CartSlideMenuProps {
 export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: CartSlideMenuProps) {
   const [internalOpen, setInternalOpen] = useState(false)
   const [pageFlags, setPageFlags] = useState({ cart: false, checkout: false })
+  const [isMounted, setIsMounted] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { items, removeItem, updateQuantity, getTotal, getItemCount } = useCart()
+
+  // Prevent hydration mismatch by only rendering after client mount
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Check if we're on cart page - only on client side to avoid hydration mismatch
   useEffect(() => {
@@ -41,6 +47,11 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
   const handleCheckout = () => {
     setOpen(false)
     router.push("/checkout")
+  }
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return <>{children}</>
   }
 
   return (

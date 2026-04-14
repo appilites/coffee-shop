@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = "force-dynamic"
@@ -8,13 +8,16 @@ export async function GET() {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
   if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json(
-      { error: "Supabase configuration missing" }, 
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: "Supabase configuration missing",
+      data: [],
+      count: 0
+    }, { status: 500 })
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey)
+
   try {
     const { data, error } = await supabase
       .from('new_arrivals')
@@ -35,17 +38,19 @@ export async function GET() {
       imageUrl: item.image_url,
       buttonText: item.button_text,
       redirectLink: item.redirect_link,
-      displayOrder: item.display_order,
-      isActive: item.is_active,
-      createdAt: item.created_at,
-      updatedAt: item.updated_at
+      displayOrder: item.display_order
     }))
 
     return NextResponse.json({
       success: true,
       data: transformedData,
       count: transformedData.length
+    }, {
+      headers: {
+        'Cache-Control': 'no-store'
+      }
     })
+
   } catch (error) {
     console.error('Error fetching new arrivals:', error)
     
@@ -58,10 +63,7 @@ export async function GET() {
         imageUrl: '/newarrival.jfif',
         buttonText: 'Try Now',
         redirectLink: '/menu?category=cat-17',
-        displayOrder: 1,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        displayOrder: 1
       },
       {
         id: 'fallback-2',
@@ -70,10 +72,7 @@ export async function GET() {
         imageUrl: '/newarrival1.jfif',
         buttonText: 'Try Now',
         redirectLink: '/menu?category=cat-16',
-        displayOrder: 2,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        displayOrder: 2
       },
       {
         id: 'fallback-3',
@@ -82,10 +81,7 @@ export async function GET() {
         imageUrl: '/newarrival2.jfif',
         buttonText: 'Try Now',
         redirectLink: '/menu?category=cat-10',
-        displayOrder: 3,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        displayOrder: 3
       }
     ]
     
@@ -93,61 +89,10 @@ export async function GET() {
       success: true,
       data: fallbackData,
       count: fallbackData.length
+    }, {
+      headers: {
+        'Cache-Control': 'no-store'
+      }
     })
-  }
-}
-
-// POST - Create new arrival
-export async function POST(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json(
-      { error: "Supabase configuration missing" }, 
-      { status: 500 }
-    )
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey)
-  try {
-    const body = await request.json()
-    
-    // Validate required fields
-    if (!body.title || !body.buttonText) {
-      return NextResponse.json(
-        { error: "Title and button text are required" },
-        { status: 400 }
-      )
-    }
-
-    const insertData = {
-      title: body.title,
-      description: body.description || null,
-      image_url: body.imageUrl || null,
-      button_text: body.buttonText,
-      redirect_link: body.redirectLink || null,
-      is_active: body.isActive !== undefined ? body.isActive : true,
-      display_order: body.displayOrder || 0
-    }
-
-    const { data, error } = await supabase
-      .from('new_arrivals')
-      .insert(insertData)
-      .select()
-      .single()
-    
-    if (error) {
-      console.error('Supabase insert error:', error)
-      throw error
-    }
-
-    return NextResponse.json(data, { status: 201 })
-  } catch (error) {
-    console.error('Error creating new arrival:', error)
-    return NextResponse.json(
-      { error: "Failed to create new arrival" }, 
-      { status: 500 }
-    )
   }
 }

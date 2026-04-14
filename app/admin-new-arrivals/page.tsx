@@ -11,13 +11,19 @@ interface NewArrival {
   id: string
   title: string
   description: string | null
-  image_url: string | null
-  button_text: string
-  redirect_link: string | null
-  is_active: boolean
-  display_order: number
-  created_at: string
-  updated_at: string
+  imageUrl: string | null
+  buttonText: string
+  redirectLink: string | null
+  isActive: boolean
+  displayOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+interface ApiResponse {
+  success: boolean
+  data: NewArrival[]
+  count: number
 }
 
 export default function AdminNewArrivalsPage() {
@@ -36,14 +42,14 @@ export default function AdminNewArrivalsPage() {
       // Fetch all items (not just active ones) for admin
       const response = await fetch('/api/new-arrivals-admin')
       if (!response.ok) {
-        // Fallback to regular endpoint
-        const fallbackResponse = await fetch('/api/new-arrivals')
-        const data = await fallbackResponse.json()
-        setNewArrivals(data)
-        return
+        throw new Error('Failed to fetch new arrivals')
       }
-      const data = await response.json()
-      setNewArrivals(data)
+      const apiResponse: ApiResponse = await response.json()
+      if (apiResponse.success) {
+        setNewArrivals(apiResponse.data)
+      } else {
+        throw new Error('API returned unsuccessful response')
+      }
     } catch (error) {
       console.error('Error fetching new arrivals:', error)
       toast({
@@ -132,10 +138,10 @@ export default function AdminNewArrivalsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {newArrivals.map((item) => (
             <Card key={item.id} className="overflow-hidden">
-              {item.image_url && (
+              {item.imageUrl && (
                 <div className="aspect-video relative">
                   <img
-                    src={item.image_url}
+                    src={item.imageUrl}
                     alt={item.title}
                     className="w-full h-full object-cover"
                   />
@@ -152,18 +158,18 @@ export default function AdminNewArrivalsPage() {
                     )}
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs ${
-                    item.is_active 
+                    item.isActive 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {item.is_active ? 'Active' : 'Inactive'}
+                    {item.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-muted-foreground">
-                    Order: {item.display_order}
+                    Order: {item.displayOrder}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button 

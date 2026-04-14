@@ -26,7 +26,25 @@ export async function GET() {
       throw error
     }
 
-    return NextResponse.json(data || [])
+    // Transform data to match the expected format from the guide
+    const transformedData = (data || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      imageUrl: item.image_url,
+      buttonText: item.button_text,
+      redirectLink: item.redirect_link,
+      displayOrder: item.display_order,
+      isActive: item.is_active,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at
+    }))
+
+    return NextResponse.json({
+      success: true,
+      data: transformedData,
+      count: transformedData.length
+    })
   } catch (error) {
     console.error('Error fetching new arrivals for admin:', error)
     return NextResponse.json(

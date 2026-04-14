@@ -15,11 +15,11 @@ interface NewArrival {
   id?: string
   title: string
   description: string | null
-  image_url: string | null
-  button_text: string
-  redirect_link: string | null
-  is_active: boolean
-  display_order: number
+  imageUrl: string | null
+  buttonText: string
+  redirectLink: string | null
+  isActive: boolean
+  displayOrder: number
 }
 
 interface NewArrivalsFormProps {
@@ -34,11 +34,11 @@ export function NewArrivalsForm({ initialData, onSuccess, onCancel }: NewArrival
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     description: initialData?.description || "",
-    imageUrl: initialData?.image_url || "",
-    buttonText: initialData?.button_text || "Try Now",
-    redirectLink: initialData?.redirect_link || "",
-    isActive: initialData?.is_active !== undefined ? initialData.is_active : true,
-    displayOrder: initialData?.display_order || 0
+    imageUrl: initialData?.imageUrl || "",
+    buttonText: initialData?.buttonText || "Try Now",
+    redirectLink: initialData?.redirectLink || "",
+    isActive: initialData?.isActive !== undefined ? initialData.isActive : true,
+    displayOrder: initialData?.displayOrder || 0
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
