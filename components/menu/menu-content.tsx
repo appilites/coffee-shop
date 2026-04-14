@@ -1259,8 +1259,8 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
                       >
                         {isParent && getSubcategories(categoryId).length > 0 ? (
                           // Parent category heading with different style (no items count)
-                          <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold uppercase tracking-wide flex items-center gap-2 sm:gap-2.5 md:gap-3 border-b-2 border-foreground/30 pb-2 sm:pb-2.5 md:pb-3 text-foreground">
-                            <span>{group.category.name}</span>
+                          <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold uppercase tracking-wide flex items-center gap-2 sm:gap-2.5 md:gap-3 pb-1 sm:pb-1.5 md:pb-2">
+                            <span className="gradient-copper-gold-text">{group.category.name}</span>
                           </h2>
                         ) : (
                           // Subcategory or parent without subcategories heading

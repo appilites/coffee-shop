@@ -1,103 +1,129 @@
 import { NextResponse } from "next/server"
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from "@supabase/supabase-js"
+import { FALLBACK_NEW_ARRIVALS } from "@/lib/new-arrivals-fallback"
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+const FALLBACK_SUPABASE_URL = "https://xnmnklgmmeqpajxwrkir.supabase.co"
+const FALLBACK_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhubW5rbGdtbWVxcGFqeHdya2lyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzQ0MzgsImV4cCI6MjA4ODMxMDQzOH0.kQAaa27pr99vO8Ez1ffQJMrdFmiYD2uc00odwOmA9eM"
+
+export async function GET(request: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    
-    // Always return fallback data if environment variables are missing
-    // This ensures the site works even without proper Supabase configuration
-    const fallbackData = [
-      {
-        id: 'fallback-1',
-        title: 'Protein Waffles',
-        description: 'Build your own protein-packed waffle with your favorite toppings',
-        imageUrl: '/newarrival.jfif',
-        buttonText: 'Try Now',
-        redirectLink: '/menu?category=cat-17',
-        displayOrder: 1
-      },
-      {
-        id: 'fallback-2',
-        title: 'Oat Milk Chai Tea Latte',
-        description: 'Slow sips, sweet moments. Protein-packed chai tea latte with oat milk',
-        imageUrl: '/newarrival1.jfif',
-        buttonText: 'Try Now',
-        redirectLink: '/menu?category=cat-16',
-        displayOrder: 2
-      },
-      {
-        id: 'fallback-3',
-        title: 'Specialty Drinks',
-        description: 'Explore our premium specialty drink collection with unique flavors',
-        imageUrl: '/newarrival2.jfif',
-        buttonText: 'Try Now',
-        redirectLink: '/menu?category=cat-specialty-drinks',
-        displayOrder: 3
-      }
-    ]
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.log('Using fallback data - Supabase environment variables not configured')
-      
+    const allowFallback = process.env.NODE_ENV !== "production"
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || (allowFallback ? FALLBACK_SUPABASE_URL : "")
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (allowFallback ? FALLBACK_SUPABASE_ANON_KEY : "")
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
+    const debug = new URL(request.url).searchParams.get("debug") === "1"
+    const projectHost = supabaseUrl ? new URL(supabaseUrl).host : null
+
+    const fallbackPayload = {
+      success: true,
+      data: FALLBACK_NEW_ARRIVALS,
+      count: FALLBACK_NEW_ARRIVALS.length,
+      source: "fallback",
+    }
+
+    if (!supabaseUrl || !anonKey) {
       return NextResponse.json({
-        success: true,
-        data: fallbackData,
-        count: fallbackData.length,
-        source: 'fallback'
+        ...(allowFallback
+          ? fallbackPayload
+          : {
+              success: true,
+              data: [],
+              count: 0,
+              source: "database_unavailable",
+            }),
+        ...(debug
+          ? {
+              debug: {
+                reason: "missing_env",
+                projectHost,
+                hasAnonKey: Boolean(anonKey),
+                hasServiceRoleKey: Boolean(serviceRoleKey),
+                fallbackEnabled: allowFallback,
+              },
+            }
+          : {}),
       }, {
         headers: {
-          'Cache-Control': 'no-store'
+          "Cache-Control": "no-store",
         }
       })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    const key = serviceRoleKey || anonKey
+    const supabase = createClient(supabaseUrl, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
 
     const { data, error } = await supabase
-      .from('new_arrivals')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-    
+      .from("new_arrivals")
+      .select("*")
+      .eq("is_active", true)
+      .order("display_order")
+
     if (error) {
-      console.error('Supabase query error, using fallback:', error)
       return NextResponse.json({
-        success: true,
-        data: fallbackData,
-        count: fallbackData.length,
-        source: 'fallback'
+        ...(allowFallback
+          ? fallbackPayload
+          : {
+              success: true,
+              data: [],
+              count: 0,
+              source: "database_unavailable",
+            }),
+        ...(debug
+          ? {
+              debug: {
+                reason: "query_failed",
+                projectHost,
+                keyMode: serviceRoleKey ? "service_role" : "anon",
+                error: error.message,
+                fallbackEnabled: allowFallback,
+              },
+            }
+          : {}),
       }, {
         headers: {
-          'Cache-Control': 'no-store'
+          "Cache-Control": "no-store",
         }
       })
     }
 
-    // Transform data to match the expected format from the guide
-    const transformedData = (data || []).map(item => ({
+    const transformedData = (data || []).map((item) => ({
       id: item.id,
       title: item.title,
       description: item.description,
       imageUrl: item.image_url,
       buttonText: item.button_text,
       redirectLink: item.redirect_link,
-      displayOrder: item.display_order
+      displayOrder: item.display_order,
     }))
 
-    // If no data from database, use fallback
     if (transformedData.length === 0) {
       return NextResponse.json({
-        success: true,
-        data: fallbackData,
-        count: fallbackData.length,
-        source: 'fallback'
+        ...(allowFallback
+          ? fallbackPayload
+          : {
+              success: true,
+              data: [],
+              count: 0,
+              source: "database_empty",
+            }),
+        ...(debug
+          ? {
+              debug: {
+                reason: "empty_rows",
+                projectHost,
+                keyMode: serviceRoleKey ? "service_role" : "anon",
+                fallbackEnabled: allowFallback,
+              },
+            }
+          : {}),
       }, {
         headers: {
-          'Cache-Control': 'no-store'
+          "Cache-Control": "no-store",
         }
       })
     }
@@ -106,55 +132,38 @@ export async function GET() {
       success: true,
       data: transformedData,
       count: transformedData.length,
-      source: 'database'
+      source: "database",
+      ...(debug
+        ? {
+            debug: {
+              keyMode: serviceRoleKey ? "service_role" : "anon",
+              projectHost,
+            },
+          }
+        : {}),
     }, {
       headers: {
-        'Cache-Control': 'no-store'
+        "Cache-Control": "no-store",
       }
     })
-
   } catch (error) {
-    console.error('API Error in /api/public/new-arrivals:', error)
-    
-    // Return fallback data on any error
-    const fallbackData = [
-      {
-        id: 'fallback-1',
-        title: 'Protein Waffles',
-        description: 'Build your own protein-packed waffle with your favorite toppings',
-        imageUrl: '/newarrival.jfif',
-        buttonText: 'Try Now',
-        redirectLink: '/menu?category=cat-17',
-        displayOrder: 1
-      },
-      {
-        id: 'fallback-2',
-        title: 'Oat Milk Chai Tea Latte',
-        description: 'Slow sips, sweet moments. Protein-packed chai tea latte with oat milk',
-        imageUrl: '/newarrival1.jfif',
-        buttonText: 'Try Now',
-        redirectLink: '/menu?category=cat-16',
-        displayOrder: 2
-      },
-      {
-        id: 'fallback-3',
-        title: 'Specialty Drinks',
-        description: 'Explore our premium specialty drink collection with unique flavors',
-        imageUrl: '/newarrival2.jfif',
-        buttonText: 'Try Now',
-        redirectLink: '/menu?category=cat-specialty-drinks',
-        displayOrder: 3
-      }
-    ]
-    
     return NextResponse.json({
-      success: true,
-      data: fallbackData,
-      count: fallbackData.length,
-      source: 'fallback'
+      ...(process.env.NODE_ENV !== "production"
+        ? {
+            success: true,
+            data: FALLBACK_NEW_ARRIVALS,
+            count: FALLBACK_NEW_ARRIVALS.length,
+            source: "fallback",
+          }
+        : {
+            success: true,
+            data: [],
+            count: 0,
+            source: "database_unavailable",
+          }),
     }, {
       headers: {
-        'Cache-Control': 'no-store'
+        "Cache-Control": "no-store",
       }
     })
   }

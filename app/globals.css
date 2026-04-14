@@ -201,6 +201,7 @@
       #FF8C00 80%,     /* Dark golden orange */
       #DAA520 100%     /* Goldenrod - warm gold */
     );
+    color: transparent;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

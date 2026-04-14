@@ -4,16 +4,20 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Coffee, Clock, CreditCard, Droplet, Zap } from "lucide-react"
+import { Coffee, Clock, CreditCard, Droplet, Smartphone, Zap } from "lucide-react"
 import { TrackOrderDialog } from "@/components/track-order-dialog"
 import { LoyaltyPointsDisplay } from "@/components/loyalty-points-display"
 import { PromotionsSection } from "@/components/promotions-section"
 import { NewArrivalsSection } from "@/components/new-arrivals-section"
 import { ApothecarySection } from "@/components/apothecary-section"
+import { requestPwaInstallPrompt } from "@/components/pwa-install-manager"
 import { useState } from "react"
 
 export default function HomePage() {
   const [showTrackDialog, setShowTrackDialog] = useState(false)
+  const handleInstallApp = () => {
+    requestPwaInstallPrompt()
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,11 +53,41 @@ export default function HomePage() {
         <div 
           className="absolute inset-0 bg-center bg-no-repeat"
           style={{ 
-            backgroundImage: 'url("/hero-banner.jpeg")',
+            backgroundImage: 'url("/DN%20banner.png")',
             backgroundSize: 'cover',
             backgroundPosition: 'center center'
           }}
         ></div>
+        {/* Black overlay for readability */}
+        <div className="absolute inset-0 bg-black/55"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#181511]"></div>
+
+        {/* Hero content */}
+        <div className="relative z-10 container mx-auto min-h-screen px-4 flex flex-col items-center justify-center text-center">
+          <p className="text-brand font-semibold tracking-wide uppercase text-xs sm:text-sm mb-3">
+            Fresh • Energizing • Protein-Packed
+          </p>
+          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl font-bold text-white max-w-4xl leading-tight">
+            Crafted Drinks for Every Mood
+          </h1>
+          <p className="mt-4 text-sm sm:text-base md:text-lg text-white/90 max-w-2xl">
+            Explore loaded teas, specialty blends, and meal replacement favorites made to fuel your day.
+          </p>
+          <div className="mt-7 flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <Link href="/menu" className="cursor-pointer">
+              <Button className="gradient-copper-gold text-white hover:opacity-90 min-w-[150px]">
+                Browse Menu
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              className="bg-black/40 text-white border-white/60 hover:bg-black/60"
+              onClick={() => setShowTrackDialog(true)}
+            >
+              Track Order
+            </Button>
+          </div>
+        </div>
       </section>
 
       {/* Promotions — directly under hero, card grid in PromotionsSection */}
@@ -233,6 +267,43 @@ export default function HomePage() {
 
       {/* Apothecary Section - Curated Selection */}
       <ApothecarySection />
+
+      {/* Final CTA Section */}
+      <section className="px-4 pb-10 sm:pb-14 md:pb-16 lg:pb-20" style={{ backgroundColor: "#181511" }}>
+        <div className="container mx-auto">
+          <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/90 px-5 py-12 sm:px-8 sm:py-14 md:px-12 md:py-16">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand/10 via-transparent to-brand/10" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-black/70" />
+
+            <div className="relative z-10 mx-auto max-w-3xl text-center">
+              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight">
+                Ready to Transform
+                <br />
+                Your Routine?
+              </h2>
+              <p className="mt-5 text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto">
+                Join the Druids community today. Order seamlessly, earn rewards, and enjoy your favorites faster.
+              </p>
+
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                <Link href="/menu" className="cursor-pointer w-full sm:w-auto">
+                  <Button className="w-full sm:w-[200px] h-12 gradient-copper-gold text-white hover:opacity-90 uppercase tracking-[0.2em] text-xs font-semibold">
+                    Begin Order
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-[200px] h-12 border-white/20 bg-black/30 text-foreground hover:bg-black/50 uppercase tracking-[0.2em] text-xs font-semibold"
+                  onClick={handleInstallApp}
+                >
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Install App
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
 
       {/* Track Order Dialog */}

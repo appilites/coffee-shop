@@ -56,22 +56,22 @@ const apothecaryItems: ApothecaryItem[] = [
 
 export function ApothecarySection() {
   return (
-    <section className="py-16 px-4 pb-24" style={{ backgroundColor: '#0a0a0a' }}>
+    <section className="py-16 px-4 pb-24 bg-[#181511]">
       <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
           <div>
-            <p className="text-amber-600 text-sm font-medium tracking-wider uppercase mb-2">
+            <p className="text-brand text-sm font-medium tracking-wider uppercase mb-2">
               CURATED SELECTION
             </p>
-            <h2 className="text-4xl md:text-5xl font-light text-white">
+            <h2 className="font-serif text-4xl md:text-5xl font-light text-foreground">
               Explore Our Apothecary
             </h2>
           </div>
           <Link href="/menu" className="hidden md:block">
             <Button 
               variant="ghost" 
-              className="text-amber-600 hover:text-amber-500 text-sm tracking-wider uppercase"
+              className="text-brand hover:text-brand/80 text-sm tracking-wider uppercase"
             >
               VIEW FULL INVENTORY
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -103,12 +103,12 @@ export function ApothecarySection() {
                   <h3 className="text-2xl lg:text-3xl font-light text-white mb-3 lg:mb-4">
                     {apothecaryItems[0].title}
                   </h3>
-                  <p className="text-gray-200 text-sm leading-relaxed mb-4 lg:mb-6 max-w-md">
+                  <p className="text-white/85 text-sm leading-relaxed mb-4 lg:mb-6 max-w-md">
                     {apothecaryItems[0].description}
                   </p>
                   <Button 
                     variant="ghost" 
-                    className="text-amber-400 hover:text-amber-300 text-sm tracking-wider uppercase w-fit p-0 h-auto"
+                    className="text-brand hover:text-brand/80 text-sm tracking-wider uppercase w-fit p-0 h-auto"
                   >
                     {apothecaryItems[0].buttonText}
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -137,12 +137,12 @@ export function ApothecarySection() {
                   <h3 className="text-lg lg:text-xl font-light text-white mb-2">
                     {apothecaryItems[1].title}
                   </h3>
-                  <p className="text-gray-200 text-xs lg:text-sm leading-relaxed mb-3 max-w-xs">
+                  <p className="text-white/85 text-xs lg:text-sm leading-relaxed mb-3 max-w-xs">
                     {apothecaryItems[1].description}
                   </p>
                   <Button 
                     variant="ghost" 
-                    className="text-amber-400 hover:text-amber-300 text-xs lg:text-sm tracking-wider uppercase w-fit p-0 h-auto"
+                    className="text-brand hover:text-brand/80 text-xs lg:text-sm tracking-wider uppercase w-fit p-0 h-auto"
                   >
                     {apothecaryItems[1].buttonText}
                     <ArrowRight className="ml-2 h-3 w-3 lg:h-4 lg:w-4" />
@@ -174,12 +174,12 @@ export function ApothecarySection() {
                   <h3 className="text-lg lg:text-xl font-light text-white mb-2">
                     {apothecaryItems[2].title}
                   </h3>
-                  <p className="text-gray-200 text-xs lg:text-sm leading-relaxed mb-3">
+                  <p className="text-white/85 text-xs lg:text-sm leading-relaxed mb-3">
                     {apothecaryItems[2].description}
                   </p>
                   <Button 
                     variant="ghost" 
-                    className="text-amber-400 hover:text-amber-300 text-xs lg:text-sm tracking-wider uppercase w-fit p-0 h-auto"
+                    className="text-brand hover:text-brand/80 text-xs lg:text-sm tracking-wider uppercase w-fit p-0 h-auto"
                   >
                     {apothecaryItems[2].buttonText}
                     <ArrowRight className="ml-2 h-3 w-3 lg:h-4 lg:w-4" />
@@ -208,12 +208,12 @@ export function ApothecarySection() {
                   <h3 className="text-2xl lg:text-3xl font-light text-white mb-3 lg:mb-4">
                     {apothecaryItems[3].title}
                   </h3>
-                  <p className="text-gray-200 text-sm leading-relaxed mb-4 lg:mb-6 max-w-md">
+                  <p className="text-white/85 text-sm leading-relaxed mb-4 lg:mb-6 max-w-md">
                     {apothecaryItems[3].description}
                   </p>
                   <Button 
                     variant="ghost" 
-                    className="text-amber-400 hover:text-amber-300 text-sm tracking-wider uppercase w-fit p-0 h-auto"
+                    className="text-brand hover:text-brand/80 text-sm tracking-wider uppercase w-fit p-0 h-auto"
                   >
                     {apothecaryItems[3].buttonText}
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -229,7 +229,7 @@ export function ApothecarySection() {
           <Link href="/menu">
             <Button 
               variant="ghost" 
-              className="text-amber-600 hover:text-amber-500 text-sm tracking-wider uppercase"
+              className="text-brand hover:text-brand/80 text-sm tracking-wider uppercase"
             >
               VIEW FULL INVENTORY
               <ArrowRight className="ml-2 h-4 w-4" />

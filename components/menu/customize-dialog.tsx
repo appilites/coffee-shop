@@ -26,6 +26,8 @@ interface CustomizeDialogProps {
 const ADD_TO_CART_FEEDBACK_MS = 450
 const PICK3_INCLUDED_SELECTIONS = 3
 const PICK3_EXTRA_SELECTION_PRICE = 1
+const MOBILE_FULLSCREEN_DIALOG_CLASS =
+  "!inset-0 !top-0 !left-0 !w-screen !h-[100dvh] !max-w-none !rounded-none !border-0 !translate-x-0 !translate-y-0 !p-0 overflow-hidden flex flex-col sm:!inset-auto sm:!top-[50%] sm:!left-[50%] sm:!w-full sm:!h-auto sm:!max-w-2xl sm:!max-h-[90vh] sm:!rounded-lg sm:!border sm:!translate-x-[-50%] sm:!translate-y-[-50%]"
 
 export default function CustomizeDialog({ item, categoryName, menuItems = [], open, onClose }: CustomizeDialogProps) {
   const { addItem } = useCart()
@@ -573,7 +575,7 @@ export default function CustomizeDialog({ item, categoryName, menuItems = [], op
   if (allSteps.length === 0) {
     return (
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
+        <DialogContent className={MOBILE_FULLSCREEN_DIALOG_CLASS}>
           <DialogHeader className="sr-only">
             <DialogTitle>Customize {item.name}</DialogTitle>
           </DialogHeader>
@@ -624,7 +626,7 @@ export default function CustomizeDialog({ item, categoryName, menuItems = [], op
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col">
+      <DialogContent className={MOBILE_FULLSCREEN_DIALOG_CLASS}>
         <DialogHeader className="sr-only">
           <DialogTitle>Customize {item.name}</DialogTitle>
         </DialogHeader>
@@ -674,7 +676,7 @@ export default function CustomizeDialog({ item, categoryName, menuItems = [], op
         </div>
 
         {/* Content with slide animation */}
-        <div className="relative overflow-y-auto flex-1 px-4 sm:px-6 py-4">
+        <div className="relative overflow-y-auto flex-1 px-4 sm:px-6 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
           <div
             className={`transition-all duration-300 ease-in-out ${
               slideDirection === "right"
@@ -687,7 +689,7 @@ export default function CustomizeDialog({ item, categoryName, menuItems = [], op
         </div>
 
         {/* Footer Navigation - Same style as Power Bowl */}
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t bg-muted/30 shrink-0">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t bg-muted/30 shrink-0">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <Button
               onClick={handleBack}

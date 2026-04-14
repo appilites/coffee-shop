@@ -6,6 +6,7 @@ import { CartProvider } from "@/lib/context/cart-context"
 import { AuthProvider } from "@/lib/context/auth-context"
 import { LoyaltyProvider } from "@/lib/context/loyalty-context"
 import { MobileNav } from "@/components/mobile-nav"
+import { PwaInstallManager } from "@/components/pwa-install-manager"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
@@ -18,6 +19,13 @@ export const metadata: Metadata = {
   description:
     "Order premium coffee, refreshing teas, and power-packed protein drinks for quick drive-through pickup. Skip the line, fuel your day.",
   generator: "v0.app",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Druids Nutrition",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Druids Nutrition",
+  },
   icons: {
     icon: [
       {
@@ -43,6 +51,7 @@ export default function RootLayout({
               {children}
               <MobileNav />
               <Toaster />
+              <PwaInstallManager />
             </LoyaltyProvider>
           </AuthProvider>
         </CartProvider>

@@ -63,7 +63,7 @@ export function MobileNav() {
                   style={isActive ? { backgroundColor: 'transparent' } : undefined}
                 >
                   <div className="relative">
-                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                    <Icon className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                     {item.badge !== undefined && item.badge > 0 && (
                       <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 gradient-copper-gold text-white text-[9px] sm:text-[10px] md:text-xs rounded-full h-4 w-4 sm:h-4 sm:w-4 md:h-5 md:w-5 flex items-center justify-center font-semibold">
                         {item.badge}
@@ -88,7 +88,7 @@ export function MobileNav() {
               style={isActive ? { backgroundColor: 'transparent' } : undefined}
             >
               <div className="relative">
-                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                <Icon className="h-5 w-5 sm:h-5 sm:w-5 md:h-6 md:w-6" />
                 {item.badge !== undefined && item.badge > 0 && (
                   <span className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 gradient-copper-gold text-white text-[9px] sm:text-[10px] md:text-xs rounded-full h-4 w-4 sm:h-4 sm:w-4 md:h-5 md:w-5 flex items-center justify-center font-semibold">
                     {item.badge}
