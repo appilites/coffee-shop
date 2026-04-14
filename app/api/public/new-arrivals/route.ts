@@ -11,7 +11,10 @@ const FALLBACK_SUPABASE_ANON_KEY =
 export async function GET(request: Request) {
   try {
     const allowFallback = process.env.NODE_ENV !== "production"
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || (allowFallback ? FALLBACK_SUPABASE_URL : "")
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      process.env.SUPABASE_URL ||
+      (allowFallback ? FALLBACK_SUPABASE_URL : "")
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (allowFallback ? FALLBACK_SUPABASE_ANON_KEY : "")
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
     const debug = new URL(request.url).searchParams.get("debug") === "1"
@@ -39,6 +42,8 @@ export async function GET(request: Request) {
               debug: {
                 reason: "missing_env",
                 projectHost,
+                hasPublicUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+                hasServerUrl: Boolean(process.env.SUPABASE_URL),
                 hasAnonKey: Boolean(anonKey),
                 hasServiceRoleKey: Boolean(serviceRoleKey),
                 fallbackEnabled: allowFallback,
