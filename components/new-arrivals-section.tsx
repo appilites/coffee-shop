@@ -264,7 +264,7 @@ export function NewArrivalsSection() {
                       variant="outline"
                       className="w-full min-h-[44px] hover:gradient-copper-gold hover:text-white"
                     >
-                      {item.buttonText}
+                      Try Now
                     </Button>
                   </Link>
                 )}
