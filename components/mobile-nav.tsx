@@ -31,7 +31,6 @@ export function MobileNav() {
     pathname?.includes("/admin") ||
     pathname?.includes("/payment") ||
     pathname?.includes("/order-status") ||
-    pathname === "/login" ||
     pathname === "/signup" ||
     pathname?.startsWith("/auth/")
   ) {
@@ -44,9 +43,16 @@ export function MobileNav() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 border-t border-border z-50" style={{ backgroundColor: '#181511' }}>
-      <nav className="flex items-center justify-around h-12 sm:h-14 md:h-16 max-w-screen-xl mx-auto px-2 sm:px-3 md:px-4">
-        {navItems.map((item) => {
+    <>
+      {/* Layout spacer so page content never gets cut under fixed bottom nav */}
+      <div className="h-[calc(env(safe-area-inset-bottom)+5.5rem)] md:h-[calc(env(safe-area-inset-bottom)+6rem)]" />
+
+      <div
+        className="fixed bottom-0 left-0 right-0 border-t border-border z-[90] pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgba(0,0,0,0.35)]"
+        style={{ backgroundColor: '#181511' }}
+      >
+        <nav className="flex items-center justify-around h-14 sm:h-14 md:h-16 max-w-screen-xl mx-auto px-2 sm:px-3 md:px-4">
+          {navItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
           const isCart = item.href === "/cart"
@@ -98,8 +104,9 @@ export function MobileNav() {
               <span className="text-[10px] sm:text-xs font-medium leading-tight">{item.label}</span>
             </button>
           )
-        })}
-      </nav>
-    </div>
+          })}
+        </nav>
+      </div>
+    </>
   )
 }

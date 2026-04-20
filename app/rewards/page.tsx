@@ -76,7 +76,7 @@ export default function RewardsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background" style={{ backgroundColor: "#181511" }}>
+    <div className="min-h-screen bg-background pb-24" style={{ backgroundColor: "#181511" }}>
       <header className="border-b border-border sticky top-0 z-50" style={{ backgroundColor: "#181511" }}>
         <div className="container mx-auto flex items-center justify-between px-2 py-1.5 sm:px-3 sm:py-2 md:px-4 md:py-3 lg:py-4">
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">

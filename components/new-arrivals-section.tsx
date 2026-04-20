@@ -176,7 +176,7 @@ export function NewArrivalsSection() {
   return (
     <section className="container mx-auto px-2 sm:px-3 md:px-4 pt-3 sm:pt-4 md:pt-6 lg:pt-8 pb-6 sm:pb-8 md:pb-12 lg:pb-16" style={{ backgroundColor: '#181511' }}>
       <div className="mb-5 sm:mb-6 md:mb-8 lg:mb-12 text-center px-2">
-        <h2 className="text-3xl font-bold text-center mb-8 text-foreground">New Arrivals</h2>
+        <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-light text-center mb-8 text-foreground">New Arrivals</h2>
         <p className="mt-1.5 sm:mt-2 md:mt-3 text-xs sm:text-sm md:text-base text-muted-foreground">
           Discover our latest additions to the menu
         </p>
@@ -216,7 +216,7 @@ export function NewArrivalsSection() {
           ref={scrollContainerRef}
           className={`${
             showSlider 
-              ? 'flex gap-4 overflow-x-auto scrollbar-hide pb-4' 
+              ? 'flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-4' 
               : 'grid gap-2.5 sm:gap-3 md:gap-4 lg:gap-6 md:grid-cols-3'
           }`}
           onScroll={checkScrollButtons}
@@ -230,12 +230,10 @@ export function NewArrivalsSection() {
             <Card 
               key={item.id} 
               className={`group overflow-hidden transition-all hover:shadow-xl ${
-                showSlider ? 'flex-shrink-0 w-[calc(33.333%-0.75rem)] scroll-snap-align-start' : ''
+                showSlider
+                  ? 'flex-shrink-0 w-full min-w-full max-w-full sm:w-[calc(50%-0.5rem)] sm:min-w-[calc(50%-0.5rem)] sm:max-w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] lg:min-w-[calc(33.333%-0.75rem)] lg:max-w-[calc(33.333%-0.75rem)] scroll-snap-align-start'
+                  : ''
               }`}
-              style={showSlider ? {
-                minWidth: 'calc(33.333% - 0.75rem)',
-                maxWidth: 'calc(33.333% - 0.75rem)'
-              } : {}}
             >
               <div className="aspect-video relative overflow-hidden">
                 <img

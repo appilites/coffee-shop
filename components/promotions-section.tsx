@@ -106,7 +106,7 @@ export function PromotionsSection() {
             <Tag className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
             <span className="text-xs font-semibold uppercase tracking-wide">Offers</span>
           </div>
-          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Promotions</h2>
+          <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-light text-foreground">Promotions</h2>
         </div>
 
         <div className="relative">
@@ -143,7 +143,7 @@ export function PromotionsSection() {
             ref={scrollContainerRef}
             className={`${
               showSlider 
-                ? 'flex gap-4 overflow-x-auto scrollbar-hide pb-4' 
+                ? 'flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-4' 
                 : 'grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6'
             }`}
             onScroll={checkScrollButtons}
@@ -154,13 +154,13 @@ export function PromotionsSection() {
             } : {}}
           >
             {items.map((p) => (
-              <div 
-                key={p.id} 
-                className={showSlider ? 'flex-shrink-0 w-[calc(33.333%-0.75rem)] scroll-snap-align-start' : ''}
-                style={showSlider ? {
-                  minWidth: 'calc(33.333% - 0.75rem)',
-                  maxWidth: 'calc(33.333% - 0.75rem)'
-                } : {}}
+              <div
+                key={p.id}
+                className={
+                  showSlider
+                    ? 'flex-shrink-0 w-full min-w-full max-w-full sm:w-[calc(50%-0.5rem)] sm:min-w-[calc(50%-0.5rem)] sm:max-w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] lg:min-w-[calc(33.333%-0.75rem)] lg:max-w-[calc(33.333%-0.75rem)] scroll-snap-align-start'
+                    : ''
+                }
               >
                 <PromotionCard promotion={p} onActivate={() => onActivate(p)} />
               </div>

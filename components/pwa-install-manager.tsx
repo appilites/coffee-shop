@@ -40,9 +40,17 @@ export function PwaInstallManager() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
+    const isProd = process.env.NODE_ENV === "production"
 
-    // Register service worker for offline shell + installability.
-    if ("serviceWorker" in navigator) {
+    // Avoid hydration/cache issues in local dev: unregister any previous SW and skip registration.
+    if ("serviceWorker" in navigator && !isProd) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => reg.unregister())
+      })
+    }
+
+    // Register service worker only in production.
+    if ("serviceWorker" in navigator && isProd) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
         console.warn("Service worker registration failed:", err)
       })

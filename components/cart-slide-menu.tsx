@@ -87,11 +87,11 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
                 <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6 px-2">
                   Add some items to get started!
                 </p>
-                <Link href="/menu">
-                  <Button className="gradient-copper-gold text-white hover:opacity-90 text-xs sm:text-sm h-8 sm:h-9 md:h-10 px-4 sm:px-6">
+                <Button className="gradient-copper-gold text-white hover:opacity-90 text-xs sm:text-sm h-8 sm:h-9 md:h-10 px-4 sm:px-6" asChild>
+                  <Link href="/menu" onClick={() => setOpen(false)}>
                     Browse Menu
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             ) : (
               <div className="space-y-2 sm:space-y-3 pb-4">
@@ -183,7 +183,7 @@ export function CartSlideMenu({ children, open: controlledOpen, onOpenChange }: 
           </div>
 
           {items.length > 0 && (
-            <div className="border-t border-border px-3 sm:px-4 md:px-5 py-3 sm:py-4 space-y-2 sm:space-y-3 shrink-0 bg-[#181511]">
+            <div className="border-t border-border px-3 sm:px-4 md:px-5 pt-3 sm:pt-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-2 sm:space-y-3 shrink-0 bg-[#181511]">
               <div className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>

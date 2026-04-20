@@ -719,7 +719,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
   }, [sortBy, priceRange, maxPrice, showFeaturedOnly, searchQuery, selectedCategory, categoryFromUrl])
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-[calc(env(safe-area-inset-bottom)+7rem)] md:pb-36">
       <header className="sticky top-0 z-20 border-b border-border backdrop-blur-md shadow-sm" style={{ backgroundColor: '#181511' }}>
         <div className="container mx-auto px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 md:py-2">
           <div className="flex items-center justify-between gap-1 sm:gap-1.5 md:gap-2">
@@ -1207,7 +1207,7 @@ export default function MenuContent({ menuData, onRefresh }: MenuContentProps) {
 
             {groupedItems && groupedItems.length > 0 ? (
               // Items grouped by category - Works for "All Items" and parent categories (shows subcategory sections)
-              <div className="space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12 pb-20">
+              <div className="space-y-6 sm:space-y-8 md:space-y-10 lg:space-y-12 pb-28 sm:pb-32">
                 {groupedItems.map((group) => {
                   const categoryId = group.category.id
                   const categoryName = getCategoryDisplayName(categoryId)

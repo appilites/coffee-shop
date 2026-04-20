@@ -1,5 +1,6 @@
-const CACHE_NAME = "druids-nutrition-v1"
-const CORE_ASSETS = ["/", "/manifest.webmanifest", "/logo.png"]
+const CACHE_NAME = "druids-nutrition-v2"
+const CORE_ASSETS = ["/manifest.webmanifest", "/logo.png"]
+const STATIC_DESTINATIONS = new Set(["style", "script", "image", "font"])
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -27,9 +28,14 @@ self.addEventListener("fetch", (event) => {
 
   // Network-first for navigation requests.
   if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request).catch(() => caches.match("/")),
-    )
+    event.respondWith(fetch(request))
+    return
+  }
+
+  const url = new URL(request.url)
+  const isSameOrigin = url.origin === self.location.origin
+  const isStaticAsset = STATIC_DESTINATIONS.has(request.destination) || url.pathname.startsWith("/_next/static/")
+  if (!isSameOrigin || !isStaticAsset) {
     return
   }
 
